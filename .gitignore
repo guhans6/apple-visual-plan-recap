@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+
+# Upstream working copies are kept beside this project for audit/fork work.
+# They are intentionally not vendored into the project repository.
+BuilderIO-skills/
+BuilderIO-agent-native/
