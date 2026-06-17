@@ -1,6 +1,6 @@
 # Apple Visual Plan/Recap PRD
 
-Issue tracker status: local PRD artifact. Publish later with `ready-for-agent` when the Apple visual skills repo and issue tracker are created.
+Issue tracker status: published as https://github.com/guhans6/apple-visual-plan-recap/issues/1.
 
 ## Problem Statement
 
@@ -121,4 +121,3 @@ Self-hosted DB/shared-team mode is deferred until the local loop is proven. Host
 The critical correction from review is that local-files mode is not enough by itself. The local MVP must add a real local feedback layer. The value proposition is not simply "visual plans"; it is a private local loop where the developer annotates a rendered artifact and the agent can read, act on, and consume that feedback.
 
 The implementation plan should remain the execution source of truth for file-level tasks. This PRD intentionally avoids specific file paths and code snippets except for describing stable contracts at a product level.
-

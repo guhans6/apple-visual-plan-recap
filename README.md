@@ -17,6 +17,32 @@ annotate stable visual blocks, and let an agent read and consume that feedback.
 - Issue slices: `docs/issues/apple-visual-plan-recap-issues.md`
 - Implementation plan: `docs/superpowers/plans/2026-06-17-apple-visual-plan-recap.md`
 - Gatekeeper review: `docs/reviews/apple-visual-gatekeeper-review.md`
+- Local feedback contract: `docs/feedback/local-feedback-contract.md`
+- Self-hosting notes: `docs/self-hosting.md`
+
+## Verify
+
+```sh
+npm run check
+```
+
+The check validates:
+
+- only `visual-plan` and `visual-recap` skills are present,
+- skill docs default to local/self-hosted rendering,
+- the sample MDX uses approved block tags and stable IDs,
+- sample sidecars start in the correct state,
+- local feedback read/group/consume behavior works.
+
+## Run Local Plan
+
+```sh
+npm run dev
+```
+
+Then open `http://127.0.0.1:4173`. The local server renders
+`examples/apple-settings-pane/plan.mdx`, exposes stable block anchors, and
+persists comments into the sample feedback sidecars.
 
 ## Upstream References
 

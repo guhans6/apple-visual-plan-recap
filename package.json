@@ -1,0 +1,15 @@
+{
+  "name": "apple-visual-plan-recap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Apple-focused local visual plan and recap skills with file-backed feedback sidecars.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "node scripts/serve-local-plan.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check:skills": "node scripts/check-skills.mjs",
+    "check:sample": "node scripts/validate-sample-plan.mjs",
+    "check": "npm run check:skills && npm run check:sample && npm test"
+  }
+}

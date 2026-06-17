@@ -1,0 +1,48 @@
+# Settings Pane Visual Plan
+
+<RichText id="goal">
+Build a local-first plan for adding a macOS settings pane that controls a
+background transcription feature. This artifact is for planning and review, not
+production UI.
+</RichText>
+
+<FileTree
+  id="file-map"
+  files={[
+    "TranscriberApp/App/TranscriberApp.swift",
+    "TranscriberApp/Settings/SettingsScene.swift",
+    "TranscriberApp/Settings/TranscriptionSettingsView.swift",
+    "TranscriberApp/Models/TranscriptionPreferences.swift",
+    "TranscriberAppTests/TranscriptionPreferencesTests.swift"
+  ]}
+/>
+
+<Diagram id="state-flow" type="mermaid">
+{`
+flowchart TD
+  A["SettingsScene"] --> B["TranscriptionSettingsView"]
+  B --> C["TranscriptionPreferences"]
+  C --> D["UserDefaults suite"]
+  B --> E["Preview fixture"]
+  C --> F["Unit tests"]
+`}
+</Diagram>
+
+<Checklist
+  id="verification-evidence"
+  items={[
+    "swift test for TranscriptionPreferences",
+    "xcodebuild build for macOS app scheme",
+    "open SwiftUI preview for TranscriptionSettingsView",
+    "verify no new entitlement or privacy manifest requirement"
+  ]}
+/>
+
+<QuestionForm
+  id="open-questions"
+  questions={[
+    "Should preferences be per-device or synced later?",
+    "Should transcription start automatically after launch?",
+    "Does the setting affect existing queued transcription jobs?"
+  ]}
+/>

@@ -1,8 +1,23 @@
 # Apple Visual Plan/Recap Issue Breakdown
 
-Issue tracker status: local issue plan. Publish later with `ready-for-agent` when the target repo and tracker are created.
+Issue tracker status: published to https://github.com/guhans6/apple-visual-plan-recap/issues.
 
 Parent PRD: `docs/prd/apple-visual-plan-recap-prd.md`
+
+Published PRD issue: https://github.com/guhans6/apple-visual-plan-recap/issues/1
+
+Published slices:
+
+- Issue 1: https://github.com/guhans6/apple-visual-plan-recap/issues/2
+- Issue 2: https://github.com/guhans6/apple-visual-plan-recap/issues/3
+- Issue 3: https://github.com/guhans6/apple-visual-plan-recap/issues/4
+- Issue 4: https://github.com/guhans6/apple-visual-plan-recap/issues/5
+- Issue 5: https://github.com/guhans6/apple-visual-plan-recap/issues/6
+- Issue 6: https://github.com/guhans6/apple-visual-plan-recap/issues/7
+- Issue 7: https://github.com/guhans6/apple-visual-plan-recap/issues/8
+- Issue 8: https://github.com/guhans6/apple-visual-plan-recap/issues/9
+- Issue 9: https://github.com/guhans6/apple-visual-plan-recap/issues/10
+- Issue 10: https://github.com/guhans6/apple-visual-plan-recap/issues/11
 
 ## Proposed Vertical Slices
 
@@ -267,4 +282,3 @@ Document how the local MVP can later grow into self-hosted DB/shared-team mode. 
 #### Blocked by
 
 Issue 9.
-
