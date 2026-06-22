@@ -3,7 +3,7 @@ import type { PlanContent } from "@shared/plan-content";
 import { CompanionWorkspaceShell } from "./CompanionWorkspaceShell";
 import { buildCompanionWorkspaceModel } from "./companion-shell";
 
-const EMPTY_PLAN_CONTENT: PlanContent = { blocks: [] };
+const EMPTY_PLAN_CONTENT: PlanContent = { version: 2, blocks: [] };
 
 type CompanionArtifactEditorProps = {
   slug: string;
@@ -24,9 +24,16 @@ export function CompanionArtifactEditor({
     plan,
     feedback,
   });
-  const artifact = plan?.plan;
+  const artifact = (plan?.plan ?? null) as
+    | {
+        title?: string;
+        brief?: string;
+        content?: PlanContent | null;
+      }
+    | null;
   const title =
-    artifact?.title?.trim() || (kind === "recap" ? "Untitled recap" : "Untitled plan");
+    artifact?.title?.trim() ||
+    (kind === "recap" ? "Untitled recap" : "Untitled plan");
   const brief = artifact?.brief?.trim() || "";
   const content = artifact?.content ?? EMPTY_PLAN_CONTENT;
 

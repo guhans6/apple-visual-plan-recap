@@ -103,9 +103,7 @@ function planUrl(planId: string, kind: PlanKind = "plan"): string {
 }
 
 function appName(): string {
-  return (
-    process.env.APP_NAME || process.env.VITE_APP_NAME || "Agent-Native Plan"
-  );
+  return process.env.APP_NAME || process.env.VITE_APP_NAME || "Visual Companion";
 }
 
 function commentTime(comment: PlanComment): number {

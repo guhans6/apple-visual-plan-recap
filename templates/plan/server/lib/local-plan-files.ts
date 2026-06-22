@@ -58,6 +58,7 @@ export interface LocalPlanWriteInput {
   title: string;
   brief?: string | null;
   content: PlanContent | null | undefined;
+  kind?: "plan" | "recap";
   url?: string;
 }
 
@@ -382,7 +383,7 @@ async function findExistingLocalPlanFoldersFromEntries(
 async function resolveLocalPlanFolderForWrite(
   planId: string,
   title: string,
-): Promise<{ folder: string; existingFolders: string[] }> {
+): Promise<{ folder: string; slug: string; existingFolders: string[] }> {
   const dir = localPlansDir();
   const baseName = localPlanFolderName(title);
   let entries: Dirent[];
@@ -391,6 +392,7 @@ async function resolveLocalPlanFolderForWrite(
   } catch {
     return {
       folder: path.join(dir, baseName),
+      slug: baseName,
       existingFolders: [],
     };
   }
@@ -415,6 +417,7 @@ async function resolveLocalPlanFolderForWrite(
     if (currentPlanOwnsName !== false) {
       return {
         folder: path.join(dir, name),
+        slug: name,
         existingFolders,
       };
     }
@@ -522,30 +525,59 @@ async function clearExistingPlanMdxFolder(folder: string, targetPath: string) {
  */
 export async function writePlanLocalFiles(
   input: LocalPlanWriteInput,
-): Promise<{ written: boolean; folder: string; files: string[] }> {
+): Promise<{
+  written: boolean;
+  folder: string;
+  files: string[];
+  slug: string;
+  routePath: string;
+  url: string;
+}> {
   const resolved = await resolveLocalPlanFolderForWrite(
     input.planId,
     input.title,
   );
   const folder = resolved.folder;
+  const routePath = companionRoutePath(
+    input.kind ?? "plan",
+    resolved.slug,
+  );
+  const effectiveUrl =
+    typeof input.url === "string" && input.url.includes("/companion/")
+      ? input.url
+      : routePath;
   try {
     const mdx = await exportPlanContentToMdxFolder({
       content: input.content,
       title: input.title,
       brief: input.brief,
       planId: input.planId,
-      url: input.url ?? `/plans/${encodeURIComponent(input.planId)}`,
+      kind: input.kind,
+      url: effectiveUrl,
     });
 
-    return await writePlanMdxFolderToDisk(
+    const written = await writePlanMdxFolderToDisk(
       folder,
       mdx,
       resolved.existingFolders,
     );
+    return {
+      ...written,
+      slug: resolved.slug,
+      routePath,
+      url: routePath,
+    };
   } catch {
     // Read-only FS, permissions, or a sandboxed runtime: never break the
     // underlying plan operation just because the local mirror failed.
-    return { written: false, folder, files: [] };
+    return {
+      written: false,
+      folder,
+      files: [],
+      slug: resolved.slug,
+      routePath,
+      url: routePath,
+    };
   }
 }
 

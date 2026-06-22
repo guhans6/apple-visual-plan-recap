@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "plans",
+  "displayName": "Visual Companion",
+  "description": "Generate and review coding-agent artifacts as structured local visual documents with diagrams, wireframes, prototypes, annotations, feedback, and HTML export.",
+  "hosted": {
+    "url": "http://127.0.0.1:8105",
+    "mcpUrl": "http://127.0.0.1:8105/_agent-native/mcp"
+  },
+  "mcp": {
+    "serverName": "plan",
+    "aliases": ["agent-native-plans"]
+  },
+  "local": {
+    "template": "plan",
+    "sourcePath": ".",
+    "defaultUrl": "http://127.0.0.1:8105",
+    "commands": {
+      "install": "pnpm install",
+      "dev": "pnpm dev",
+      "start": "pnpm start"
+    }
+  },
+  "auth": {
+    "mode": "none",
+    "setup": "Install with the Agent-Native CLI to add the /visual-plan and /visual-recap skills plus the local companion MCP connector. This template is intended for local review without account setup."
+  },
+  "surfaces": [
+    {
+      "id": "visual-plan",
+      "action": "create-visual-plan",
+      "path": "/",
+      "description": "Create or open a Visual Companion artifact for a coding-agent task."
+    },
+    {
+      "id": "visual-recap",
+      "action": "create-visual-recap",
+      "path": "/",
+      "description": "Create a visual recap plan from a PR, commit, branch, or git diff for high-altitude review."
+    }
+  ],
+  "skills": [
+    {
+      "path": ".agents/skills/visual-plan",
+      "visibility": "both",
+      "exportAs": "visual-plan"
+    },
+    {
+      "path": ".agents/skills/visual-recap",
+      "visibility": "both",
+      "exportAs": "visual-recap"
+    }
+  ],
+  "hostAdapters": [
+    "codex-plugin",
+    "claude-marketplace",
+    "vercel-skills",
+    "plain-skill",
+    "claude-skill",
+    "chatgpt-mcp",
+    "generic-mcp"
+  ]
+}

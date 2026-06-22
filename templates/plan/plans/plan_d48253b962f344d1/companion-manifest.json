@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "slug": "plan_d48253b962f344d1",
+  "kind": "plan",
+  "generatedAt": "2026-06-22T11:35:39.361Z",
+  "targets": [
+    {
+      "id": "b1",
+      "targetKind": "document-block",
+      "label": "b1",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 9,
+        "endLine": 9
+      }
+    },
+    {
+      "id": "b2",
+      "targetKind": "document-block",
+      "label": "b2",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 17,
+        "endLine": 17
+      }
+    },
+    {
+      "id": "b3",
+      "targetKind": "document-block",
+      "label": "b3",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 26,
+        "endLine": 26
+      }
+    },
+    {
+      "id": "b4",
+      "targetKind": "document-block",
+      "label": "b4",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 44,
+        "endLine": 44
+      }
+    },
+    {
+      "id": "b5",
+      "targetKind": "document-block",
+      "label": "b5",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 61,
+        "endLine": 61
+      }
+    },
+    {
+      "id": "a",
+      "targetKind": "canvas-frame",
+      "label": "Current — skeleton ↔ empty-state loop",
+      "sourcePath": "canvas.mdx",
+      "sourceRange": {
+        "startLine": 3,
+        "endLine": 3
+      }
+    },
+    {
+      "id": "b",
+      "targetKind": "canvas-frame",
+      "label": "Fixed — calm neutral skeleton",
+      "sourcePath": "canvas.mdx",
+      "sourceRange": {
+        "startLine": 9,
+        "endLine": 9
+      }
+    }
+  ]
+}

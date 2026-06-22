@@ -1,0 +1,298 @@
+import { defineAction, embedApp } from "@agent-native/core";
+import {
+  getRequestOrgId,
+  getRequestUserEmail,
+  getRequestUserName,
+} from "@agent-native/core/server/request-context";
+import { z } from "zod";
+import { getDb, schema } from "../server/db/index.js";
+import {
+  createPlanContentFromSections,
+  normalizePlanContent,
+  sanitizeStoredPlanHtml,
+  serializePlanContent,
+} from "../server/plan-content.js";
+import {
+  isLocalPlanRuntime,
+  resolvePlanOrgIdForWrite,
+  requirePlanOwnerEmailForWrite,
+} from "../server/lib/local-identity.js";
+import { assertGuestCreateWithinLimits } from "../server/lib/guest-abuse.js";
+import { writePlanLocalFiles } from "../server/lib/local-plan-files.js";
+import {
+  buildPlanHtml,
+  commentInputSchema,
+  deriveSectionsFromText,
+  emitPlanCreated,
+  insertInitialPlanComments,
+  loadPlanBundle,
+  newId,
+  nowIso,
+  planPath,
+  planSourceSchema,
+  planStatusSchema,
+  sectionInputSchema,
+  writeEvent,
+} from "../server/plans.js";
+import { planContentSchema } from "../shared/plan-content.js";
+
+function inferImportedPlanTitle(planText: string): string {
+  const firstHeading = planText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => /^#{1,3}\s+\S/.test(line));
+  if (firstHeading) return firstHeading.replace(/^#{1,3}\s+/, "").slice(0, 90);
+  const firstLine = planText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  return firstLine ? firstLine.slice(0, 90) : "Imported visual plan";
+}
+
+export default defineAction({
+  description:
+    "Create a document-first structured plan for any coding task. For a plan whose centerpiece is wireframed screens/states on a canvas use create-ui-plan; for a recap of an existing diff use create-visual-recap; for a running interactive prototype use create-prototype-plan; for a full-fidelity branded design use create-plan-design. Also accepts imported Codex, Claude Code, Markdown, or pasted plan text via planText. Publish via this tool; never deliver the plan as inline chat text.",
+  schema: z
+    .object({
+      title: z.string().optional().describe("Short plan title"),
+      brief: z
+        .string()
+        .optional()
+        .describe(
+          "One short sentence summarizing the plan, shown as the lede under the title. Keep it to a single tight line — the document body carries the detail, not this summary.",
+        ),
+      goal: z.string().optional().describe("Alias for brief."),
+      planText: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Existing Codex, Claude Code, Markdown, or pasted plan text to preserve and turn into a visual review plan.",
+        ),
+      source: planSourceSchema.optional(),
+      repoPath: z.string().optional().describe("Repository path for the run"),
+      currentFocus: z.string().optional().describe("Current plan focus"),
+      status: planStatusSchema.optional().default("review"),
+      html: z
+        .string()
+        .optional()
+        .describe(
+          "Legacy: a standalone HTML document. Setting this NULLS structured content — blocks, contentPatches, inline editing, and MDX round-trip all stop working for this plan. Only for preserving a pre-existing HTML artifact; never author new plans this way.",
+        ),
+      content: planContentSchema
+        .optional()
+        .describe(
+          "Structured editable plan content. Prefer this for rich text, inline diagrams, annotated code, question-form open questions, and optional canvas/prototype UI surfaces. Call the get-plan-blocks tool FIRST for the authoritative block catalog, authoring rules, and style tokens — do not author from memory. Key rules: use diagram blocks with .diagram-* primitives and --wf-* tokens (no hex/rgb/hsl, no custom fonts); for file maps use annotated-code blocks in a vertical tabs block; put unresolved decisions in a bottom question-form block.",
+        ),
+      markdown: z
+        .string()
+        .optional()
+        .describe("Markdown/text fallback or source plan"),
+      sections: z
+        .array(sectionInputSchema)
+        .optional()
+        .default([])
+        .describe("Readable plan sections and visual blocks"),
+      comments: z
+        .array(commentInputSchema)
+        .optional()
+        .default([])
+        .describe("Initial annotations or review prompts"),
+    })
+    .refine((args) => Boolean(args.brief || args.goal || args.planText), {
+      message: "Either brief, goal, or planText is required.",
+    }),
+  publicAgent: {
+    expose: true,
+    readOnly: false,
+    requiresAuth: true,
+    isConsequential: true,
+    title: "Create Visual Plan",
+    description:
+      "Create a plan where a person can scan structured blocks, inline diagrams, optional UI visuals, annotate, and respond before the agent builds.",
+  },
+  mcpApp: {
+    compactCatalog: true,
+    resource: embedApp({
+      title: "Plan",
+      description:
+        "Open the Visual Companion review surface for structured blocks, inline diagrams, optional UI wireframes/prototypes, and comments.",
+      iframeTitle: "Visual Companion",
+      openLabel: "Open Plan",
+      height: 860,
+    }),
+  },
+  run: async (args) => {
+    const requesterEmail = getRequestUserEmail();
+    const requesterName = getRequestUserName();
+    const ownerEmail = requirePlanOwnerEmailForWrite(
+      requesterEmail,
+      "Creating a visual plan",
+    );
+    const ownerOrgId = resolvePlanOrgIdForWrite(
+      requesterEmail,
+      getRequestOrgId(),
+    );
+    await assertGuestCreateWithinLimits(ownerEmail);
+
+    const importedPlanText = args.planText?.trim();
+    const id = newId("plan");
+    const now = nowIso();
+    const brief =
+      args.brief ||
+      args.goal ||
+      (importedPlanText
+        ? "Visual companion for an imported coding-agent plan."
+        : "");
+    const title =
+      args.title ||
+      (importedPlanText
+        ? inferImportedPlanTitle(importedPlanText)
+        : "Untitled visual plan");
+    const sections =
+      args.sections.length > 0
+        ? args.sections
+        : importedPlanText && !args.content && !args.html
+          ? deriveSectionsFromText(importedPlanText)
+          : [
+              {
+                type: "summary" as const,
+                title: "What we are planning",
+                body: brief,
+                order: 0,
+                createdBy: "agent" as const,
+              },
+              {
+                type: "diagram" as const,
+                title: "Review flow",
+                body: "The plan is meant to be scanned, annotated, revised, then used for implementation.",
+                order: 1,
+                createdBy: "agent" as const,
+              },
+              {
+                type: "implementation" as const,
+                title: "Files and symbols to review",
+                body: "Add file references here once the agent has inspected the repo, for example `app/routes/example.tsx` - symbols: `ExampleRoute`; update the route behavior and include a short code preview.",
+                order: 2,
+                createdBy: "agent" as const,
+              },
+            ];
+    const content = args.content
+      ? normalizePlanContent(args.content)
+      : args.html
+        ? null
+        : createPlanContentFromSections({
+            title,
+            brief,
+            sections: sections.map((section, index) => ({
+              id: section.id ?? `section-${index + 1}`,
+              type: section.type,
+              title: section.title,
+              body: section.body,
+              html: section.html,
+            })),
+          });
+
+    await getDb()
+      .insert(schema.plans)
+      .values({
+        id,
+        title,
+        brief,
+        status: args.status,
+        source: args.source ?? (importedPlanText ? "imported" : "manual"),
+        repoPath: args.repoPath ?? null,
+        currentFocus: args.currentFocus ?? "visual review",
+        html: args.html != null ? sanitizeStoredPlanHtml(args.html) : null,
+        markdown: args.markdown ?? importedPlanText ?? null,
+        content: content ? serializePlanContent(content) : null,
+        createdAt: now,
+        updatedAt: now,
+        approvedAt: args.status === "approved" ? now : null,
+        ownerEmail,
+        orgId: ownerOrgId,
+        visibility: "private",
+      });
+
+    await getDb()
+      .insert(schema.planSections)
+      .values(
+        sections.map((section, index) => ({
+          id: section.id ?? newId("sec"),
+          planId: id,
+          type: section.type,
+          title: section.title,
+          body: section.body,
+          html: section.html ?? null,
+          order: section.order ?? index,
+          createdBy: section.createdBy,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+
+    await insertInitialPlanComments({
+      planId: id,
+      comments: args.comments,
+      requestEmail: requesterEmail,
+      requestName: requesterName,
+      now,
+    });
+
+    await writeEvent({
+      planId: id,
+      type: importedPlanText ? "plan.imported" : "plan.created",
+      message: importedPlanText
+        ? "Imported text plan for visual review."
+        : "Visual plan created.",
+      ...(importedPlanText
+        ? {
+            payload: {
+              source: args.source ?? "imported",
+              textLength: importedPlanText.length,
+            },
+          }
+        : {}),
+      createdBy: importedPlanText ? "import" : "agent",
+    });
+
+    const bundle = await loadPlanBundle(id);
+    emitPlanCreated({
+      planId: id,
+      title: bundle.plan.title,
+      kind: bundle.plan.kind,
+      status: bundle.plan.status,
+      ownerEmail: bundle.access.ownerEmail,
+    });
+    const local = isLocalPlanRuntime()
+      ? await writePlanLocalFiles({
+          planId: id,
+          title: bundle.plan.title,
+          brief: bundle.plan.brief,
+          content: bundle.plan.content,
+          kind: bundle.plan.kind,
+          url: planPath(id),
+        })
+      : null;
+    const detailPath = local?.written ? local.routePath : planPath(id);
+    return {
+      ...bundle,
+      planId: id,
+      html: buildPlanHtml(bundle),
+      path: detailPath,
+      url: detailPath,
+      ...(local?.written ? { localFiles: local } : {}),
+      fallbackInstructions:
+        "Open the companion artifact, scan the local rich plan blocks and any top UI/product visual tabs, add comments or corrections, then read the pending companion feedback queue before continuing. Keep the artifact in repo-local companion files unless the user explicitly asks for a separate export or selection receipt.",
+    };
+  },
+  link: ({ result }) => {
+    const url = (result as { url?: string } | null)?.url;
+    if (!url) return null;
+    return {
+      url,
+      label: "Open Plan",
+      view: "plan",
+    };
+  },
+});

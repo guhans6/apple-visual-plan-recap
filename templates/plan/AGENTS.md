@@ -1,6 +1,6 @@
-# Agent-Native Plan — Agent Guide
+# Visual Companion — Agent Guide
 
-Agent-Native Plan is a local-first structured visual plan mode for coding
+Visual Companion is a local-first structured visual artifact mode for coding
 agents. Its job is to turn agent plans into editable rich blocks, diagrams,
 wireframes, prototype options, annotations, and comments that a person can
 review before code changes happen.
@@ -28,7 +28,8 @@ review before code changes happen.
   `.plan-state.json`.
 - Surface material assumptions only when they change behavior, data, security,
   tests, deployment, or definition of done.
-- Before edits, read pending feedback with `get-plan-feedback`.
+- Before edits on a local companion artifact, read pending feedback with
+  `get-companion-feedback`.
 
 ## Application State
 
@@ -125,7 +126,7 @@ sync-guarded skills (not just one stored plan) so the improvement sticks.
   `PLAN_LOCAL_DIR` or an explicit repo-relative `path`.
 - Default checked-in storage is project-local `docs/visual-companion/` with
   `plans/` and `recaps/` subfolders. Bootstrap that folder on first requested
-  companion use instead of defaulting to the Plan app checkout.
+  companion use instead of defaulting to the companion app checkout.
 - In companion runtime, `/` is the current project's companion dashboard. Keep that
   dashboard current-project-first and hide other sources behind an explicit
   opt-in section instead of mixing repos by default.
@@ -158,7 +159,7 @@ sync-guarded skills (not just one stored plan) so the improvement sticks.
   persists the runtime model. Prefer this over regenerating a whole plan when the
   requested change is a few lines, one annotation, one artboard, or one
   wireframe node.
-- In Agent Native Desktop, the Plan menu can link a user-chosen local folder for
+- In Agent Native Desktop, the companion menu can link a user-chosen local folder for
   the current plan and keep the companion artifact rooted in repo-local MDX
   files instead of the old hosted plan flow.
 - Do not fork the vocabulary. MDX components must map to the same runtime terms:
@@ -192,11 +193,9 @@ elementId, styles }]`. Elements must have `data-design-id` or
   existing comment thread. Text feedback should anchor to the nearest prose
   block, and visual/canvas feedback should include target coordinates plus
   concise surrounding context.
-- `get-plan-feedback` returns flat comments, grouped threads, anchor summaries,
-  detailed anchor lines, and recent review events that describe the edit/comment
-  delta. Use those fields before changing code or updating the plan, especially
-  to distinguish comments the agent should act on from comments intended for a
-  human reviewer.
+- `get-companion-feedback` returns the current local companion feedback queue.
+  Read it before changing code or updating artifact files so the agent acts on
+  the pending local review thread instead of stale assumptions.
 - **Anchor interpretation.** `targetX`/`targetY` are percentages within the
   named element; bare `x`/`y` are percentages of the whole document;
   `canvasX`/`canvasY` are board-world pixels. Wireframe anchors carry

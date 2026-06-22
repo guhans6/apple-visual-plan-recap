@@ -66,9 +66,36 @@ test("orphaned hosted plan app surfaces are removed after companion extraction",
     "templates/plan/app/pages/PlansPage.comments.test.ts",
     "templates/plan/app/pages/HostedPlanHistorySheet.tsx",
     "templates/plan/app/pages/HostedPlanHistorySheet.test.tsx",
+    "templates/plan/app/hooks/use-plans.ts",
+    "templates/plan/app/hooks/use-plans.spec.ts",
   ];
 
   for (const relativePath of obsoleteAppPaths) {
+    await assertMissing(relativePath);
+  }
+});
+
+test("hosted generic plan actions are removed", async () => {
+  const obsoleteActionPaths = [
+    "templates/plan/actions/list-visual-plans.ts",
+    "templates/plan/actions/get-visual-plan.ts",
+    "templates/plan/actions/get-plan-feedback.ts",
+    "templates/plan/actions/reply-to-plan-comment.ts",
+    "templates/plan/actions/resolve-plan-comment.ts",
+    "templates/plan/actions/delete-plan-comment.ts",
+    "templates/plan/actions/consume-plan-feedback.ts",
+    "templates/plan/actions/list-plan-versions.ts",
+    "templates/plan/actions/get-plan-version.ts",
+    "templates/plan/actions/restore-plan-version.ts",
+    "templates/plan/actions/delete-visual-plan.ts",
+    "templates/plan/actions/export-visual-plan.ts",
+    "templates/plan/actions/delete-visual-plan.spec.ts",
+    "templates/plan/actions/get-plan-feedback.spec.ts",
+    "templates/plan/actions/plan-comment-actions.spec.ts",
+    "templates/plan/actions/plan-versions.spec.ts",
+  ];
+
+  for (const relativePath of obsoleteActionPaths) {
     await assertMissing(relativePath);
   }
 });

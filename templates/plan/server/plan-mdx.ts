@@ -107,8 +107,6 @@ export type ExportPlanMdxInput = {
   url?: string;
 };
 
-const HOSTED_PLAN_ORIGIN = "https://plan.agent-native.com";
-
 export const planMdxFileSchema = z.object({
   "plan.mdx": z.string().min(1),
   "canvas.mdx": z.string().optional(),
@@ -529,16 +527,8 @@ function parseSimpleFrontmatter(source: string): {
 }
 
 function visualUrlForMdx(input: Pick<ExportPlanMdxInput, "planId" | "url">) {
-  if (input.planId) {
-    return `${HOSTED_PLAN_ORIGIN}/plans/${encodeURIComponent(input.planId)}`;
-  }
-  if (!input.url) return undefined;
-  try {
-    const parsed = new URL(input.url, HOSTED_PLAN_ORIGIN);
-    return `${HOSTED_PLAN_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return undefined;
-  }
+  const trimmed = input.url?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
 /** Base URL prefix for plan-asset serving route (local SQL-backed assets). */

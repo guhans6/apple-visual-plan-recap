@@ -123,12 +123,14 @@ describe("local-plan-files", () => {
       title: content.title ?? "Untitled",
       brief: content.brief,
       content,
-      url: "/plans/plan_local1",
+      url: "/companion/plans/local-sync-flow",
     });
 
     expect(result.written).toBe(true);
     expect(result.files).toContain("plan.mdx");
     expect(result.folder).toBe(path.join(tmpDir, "local-sync-flow"));
+    expect(result.routePath).toBe("/companion/plans/local-sync-flow");
+    expect(result.url).toBe("/companion/plans/local-sync-flow");
 
     const planMdx = await fs.readFile(
       path.join(tmpDir, "local-sync-flow", "plan.mdx"),
@@ -136,10 +138,10 @@ describe("local-plan-files", () => {
     );
     expect(planMdx).toContain("Local sync flow");
     expect(planMdx).toContain(
-      "# Visual plan: open https://plan.agent-native.com/plans/plan_local1 in a browser for the canvas and review UI.",
+      "# Visual plan: open /companion/plans/local-sync-flow in a browser for the canvas and review UI.",
     );
     expect(planMdx).toContain(
-      'visualUrl: "https://plan.agent-native.com/plans/plan_local1"',
+      'visualUrl: "/companion/plans/local-sync-flow"',
     );
     expect(planMdx).not.toMatch(/^planId:/m);
     expect(planMdx).not.toMatch(/^source:/m);
@@ -160,7 +162,7 @@ describe("local-plan-files", () => {
       title: content.title ?? "Untitled",
       brief: content.brief,
       content,
-      url: "/plans/plan_localread",
+      url: "/companion/plans/local-sync-flow",
     });
 
     const local = await readPlanLocalFolder("local-sync-flow");
@@ -193,7 +195,7 @@ describe("local-plan-files", () => {
       title: content.title ?? "Prototype",
       brief: content.brief,
       content,
-      url: "/plans/plan_proto",
+      url: "/companion/plans/prototype-local-sync",
     });
 
     expect(result.written).toBe(true);
@@ -227,7 +229,7 @@ describe("local-plan-files", () => {
       title: content.title ?? "Untitled",
       brief: content.brief,
       content,
-      url: "/plans/plan_idem",
+      url: "/companion/plans/local-sync-flow",
     };
     await writePlanLocalFiles(input);
     const first = await fs.readFile(
@@ -249,7 +251,7 @@ describe("local-plan-files", () => {
       title: content.title ?? "Untitled",
       brief: content.brief,
       content,
-      url: "/plans/plan_slug",
+      url: "/companion/plans/local-sync-flow",
     });
 
     const updated = planContentSchema.parse({
@@ -401,7 +403,7 @@ describe("local-plan-files", () => {
       title: "Checkout review flow",
       brief: content.brief,
       content,
-      url: "/plans/plan_collision",
+      url: "/companion/plans/checkout-review-flow-2",
     };
     const result = await writePlanLocalFiles(input);
 
@@ -433,7 +435,7 @@ describe("local-plan-files", () => {
       title: "Readable local mirror",
       brief: content.brief,
       content,
-      url: "/plans/plan_legacy123",
+      url: "/companion/plans/readable-local-mirror",
     });
 
     expect(result.written).toBe(true);

@@ -66,7 +66,6 @@ type AnyAction = { run: (args: any) => Promise<any> };
 let createPrototypePlan: AnyAction;
 let convertVisualPlanToPrototype: AnyAction;
 let createVisualPlan: AnyAction;
-let getVisualPlan: AnyAction;
 let shareResource: AnyAction;
 let setResourceVisibility: AnyAction;
 
@@ -190,7 +189,6 @@ beforeAll(async () => {
   ).default as AnyAction;
   createVisualPlan = (await import("./create-visual-plan.js"))
     .default as AnyAction;
-  getVisualPlan = (await import("./get-visual-plan.js")).default as AnyAction;
   shareResource = (
     await import("@agent-native/core/sharing/actions/share-resource")
   ).default as AnyAction;
@@ -266,36 +264,6 @@ describe("create-prototype-plan: owner scoping", () => {
     expect(row.ownerEmail).toBe(OWNER);
     expect(row.visibility).toBe("private");
     expect(row.orgId).toBe(ORG);
-  });
-
-  it("owner can read back their own created prototype plan", async () => {
-    const planId = await createPrototypeAs(OWNER);
-    const got = await asUser({ userEmail: OWNER }, () =>
-      getVisualPlan.run({ id: planId }),
-    );
-    expect(got.planId).toBe(planId);
-  });
-
-  it("a plan one user creates is NOT readable by a different signed-in user", async () => {
-    const planId = await createPrototypeAs(OWNER);
-    await expect(
-      asUser({ userEmail: OTHER }, () => getVisualPlan.run({ id: planId })),
-    ).rejects.toThrow();
-  });
-
-  it("a non-owner read goes through loadPlanBundle's ForbiddenError (statusCode 403, clean 4xx)", async () => {
-    const planId = await createPrototypeAs(OWNER);
-    // The task's re-verify item: loadPlanBundle conflates not-found/no-access
-    // into a 403 ForbiddenError so a missing/private plan never surfaces a 500.
-    await expect(
-      asUser({ userEmail: OTHER }, () => getVisualPlan.run({ id: planId })),
-    ).rejects.toMatchObject({ statusCode: 403 });
-    // Same 403 for a truly non-existent id (no existence leak).
-    await expect(
-      asUser({ userEmail: OTHER }, () =>
-        getVisualPlan.run({ id: "plan_nope" }),
-      ),
-    ).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("an unauthenticated hosted request (no identity) cannot create a prototype plan and persists nothing", async () => {

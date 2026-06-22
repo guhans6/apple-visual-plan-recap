@@ -1,0 +1,197 @@
+/**
+ * Wraps `runAgentLoop` with two layered recovery mechanisms so a single hosted
+ * invocation can survive interruptions without showing the user a dead chat:
+ *
+ * 1. **Soft timeout** — an inner timer that aborts the LLM call before the
+ *    hosting function's hard limit (Lambda 75s, Vercel 60s, etc.) so we have a
+ *    chance to gracefully wind down and append a continuation nudge. Without
+ *    this the function gets killed mid-stream and the user sees a frozen
+ *    spinner.
+ *
+ * 2. **Resumable-error continuation** — when the LLM call errors with a
+ *    transport- or gateway-level interruption (Builder gateway 45s timeout,
+ *    socket hang up, ECONNRESET, upstream 5xx that survived engine retries),
+ *    we save the conversation prefix, append a "continue from where you left
+ *    off" message, and run another LLM call. Anthropic's prompt cache makes
+ *    the resume call dramatically faster than the cold first attempt, and the
+ *    agent gets explicit context that it was cut off so it doesn't re-do
+ *    completed work.
+ *
+ * Both paths route through `appendAgentLoopContinuation` so the agent sees a
+ * uniform "continue" instruction regardless of which recovery fired.
+ */
+
+import {
+  runAgentLoop,
+  appendAgentLoopContinuation,
+  isResumableEngineError,
+  continuationReasonForResumableError,
+} from "./production-agent.js";
+import { resolveRunSoftTimeoutMs } from "./run-manager.js";
+import { getCurrentTurnEventsForThread } from "./run-store.js";
+import {
+  classifyToolCallJournal,
+  buildResumeJournalNote,
+} from "./tool-call-journal.js";
+import type { EngineMessage } from "./engine/types.js";
+
+/**
+ * Derive the per-turn tool-call journal from the durable run-event ledger and,
+ * when there is anything to report, append a STRUCTURED note to the message
+ * prefix so the resumed model:
+ *   - does NOT re-execute tool calls that already completed (avoiding duplicate
+ *     side effects like re-sending an email or re-creating a ticket), and
+ *   - is explicitly told about any tool call that started but whose outcome was
+ *     never recorded ("interrupted, unknown outcome") so it can decide.
+ *
+ * This is additive to the existing "continue from where you left off" nudge —
+ * it is appended right after it. When the journal is empty (no completed or
+ * interrupted tool calls — e.g. a turn with no tool activity, or a clean
+ * continuation), nothing extra is appended and resume behavior is byte-for-byte
+ * what it was before. Best-effort: any ledger read/parse failure is swallowed so
+ * a journal hiccup can never block a recovery that would otherwise succeed.
+ *
+ * This prompt-level journal is paired with tool-layer enforcement in
+ * production-agent.ts/runToolCall, which refuses to re-execute a journaled-
+ * complete write tool (returning the journaled result instead). See
+ * `tool-call-journal.ts` (`findCompletedJournalEntry`) for the keying used.
+ */
+async function appendToolCallJournalNote(
+  messages: EngineMessage[],
+  threadId: string | undefined,
+): Promise<void> {
+  if (!threadId) return;
+  try {
+    const events = await getCurrentTurnEventsForThread(threadId);
+    if (events.length === 0) return;
+    const journal = classifyToolCallJournal(events);
+    const note = buildResumeJournalNote(journal);
+    if (!note) return;
+    messages.push({
+      role: "user",
+      content: [{ type: "text", text: note }],
+    });
+  } catch {
+    // The journal is a hardening layer, never a gate. A failed ledger read or
+    // parse must not break the resume that the continuation nudge already set
+    // up — the model still continues, just without the structured journal.
+  }
+}
+
+/**
+ * Cap on continuation iterations inside a single
+ * `runAgentLoopDirectWithSoftTimeout` invocation. The host's hard function
+ * timeout usually bounds this naturally — but a defensive cap prevents an
+ * instant-error spiral from looping forever inside hosting environments with a
+ * generous budget.
+ *
+ * 6 leaves room for: 1 normal completion + a few resume rounds for design
+ * generation (prompt + 3 variants ≈ 4 LLM calls), with a small safety margin.
+ */
+export const MAX_RUN_LOOP_CONTINUATIONS = 6;
+
+/**
+ * Internal entry point used by the agent-chat plugin's run handler. Wraps
+ * `runAgentLoop` with soft-timeout + resumable-error continuation recovery.
+ *
+ * The `softTimeoutMs` argument falls back to `resolveRunSoftTimeoutMs(...)` so
+ * different hosting environments (Lambda, Vercel, Cloudflare, local dev) get
+ * an appropriate inner budget. Setting it to <= 0 disables both layers — the
+ * call goes straight to `runAgentLoop` with no wrapping.
+ */
+export async function runAgentLoopDirectWithSoftTimeout(
+  opts: Parameters<typeof runAgentLoop>[0],
+  softTimeoutMs?: number,
+): Promise<Awaited<ReturnType<typeof runAgentLoop>>> {
+  const timeoutMs = resolveRunSoftTimeoutMs(softTimeoutMs);
+  if (timeoutMs <= 0) return runAgentLoop(opts);
+
+  const upstreamSignal = opts.signal;
+  const usage: Awaited<ReturnType<typeof runAgentLoop>> = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    model: opts.model,
+  };
+
+  const addUsage = (next: Awaited<ReturnType<typeof runAgentLoop>>) => {
+    usage.inputTokens += next.inputTokens;
+    usage.outputTokens += next.outputTokens;
+    usage.cacheReadTokens += next.cacheReadTokens;
+    usage.cacheWriteTokens += next.cacheWriteTokens;
+    usage.model = next.model;
+  };
+
+  let attempts = 0;
+  while (!upstreamSignal.aborted && attempts < MAX_RUN_LOOP_CONTINUATIONS) {
+    attempts++;
+    const controller = new AbortController();
+    const abortFromUpstream = () => controller.abort();
+    if (upstreamSignal.aborted) {
+      controller.abort();
+    } else {
+      upstreamSignal.addEventListener("abort", abortFromUpstream, {
+        once: true,
+      });
+    }
+
+    let softTimedOut = false;
+    const timer = setTimeout(() => {
+      if (controller.signal.aborted) return;
+      softTimedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      const nextUsage = await runAgentLoop({
+        ...opts,
+        signal: controller.signal,
+      });
+      addUsage(nextUsage);
+      if (softTimedOut && !upstreamSignal.aborted) {
+        appendAgentLoopContinuation(opts.messages, "run_timeout");
+        await appendToolCallJournalNote(opts.messages, opts.threadId);
+        continue;
+      }
+      return usage;
+    } catch (err) {
+      if (softTimedOut && !upstreamSignal.aborted) {
+        // Clear partial text the client received before the abort so the
+        // resumed model doesn't re-emit it and produce duplicated output.
+        opts.send({ type: "clear" });
+        appendAgentLoopContinuation(opts.messages, "run_timeout");
+        await appendToolCallJournalNote(opts.messages, opts.threadId);
+        continue;
+      }
+      // Resumable transport / gateway interruptions: the LLM call was cut off
+      // mid-stream (gateway 45s timeout, socket hang up, function-level
+      // timeout that didn't trip our soft timer first). Treat it the same way
+      // as a soft timeout — append a "continue from where you left off" nudge
+      // and let the loop run another LLM call. The conversation prefix up to
+      // the cut-off is preserved in opts.messages, and Anthropic's prompt
+      // cache makes the resume call much faster.
+      //
+      // Emit 'clear' so any partial streamed text is discarded on the client
+      // before the model resumes. Without this the model restarts its sentence
+      // from scratch and the fold produces duplicated text in one message
+      // (the partial text was already sent to the client but never entered
+      // the in-memory messages array, so the next attempt re-emits it).
+      if (!upstreamSignal.aborted && isResumableEngineError(err)) {
+        opts.send({ type: "clear" });
+        appendAgentLoopContinuation(
+          opts.messages,
+          continuationReasonForResumableError(err),
+        );
+        await appendToolCallJournalNote(opts.messages, opts.threadId);
+        continue;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      upstreamSignal.removeEventListener("abort", abortFromUpstream);
+    }
+  }
+
+  return usage;
+}

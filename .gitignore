@@ -3,8 +3,10 @@ node_modules/
 dist/
 coverage/
 .superpowers/
+.pnpm-store/
 
 # Upstream working copies are kept beside this project for audit/fork work.
 # They are intentionally not vendored into the project repository.
 BuilderIO-skills/
 BuilderIO-agent-native/
+BuilderIO-agent-native-restructure/
