@@ -16,6 +16,7 @@ export function CompanionArtifactPage({
 }) {
   const plan = useCompanionPlan(slug, kind, repoPath);
   const feedback = useCompanionFeedback(slug, repoPath);
+  const artifact = plan.data?.plan ?? null;
   const planIsLoading =
     Boolean(
       (plan as { isLoading?: unknown; isPending?: unknown; isFetching?: unknown })
@@ -24,7 +25,7 @@ export function CompanionArtifactPage({
     Boolean((plan as { isPending?: unknown }).isPending) ||
     Boolean((plan as { isFetching?: unknown }).isFetching);
 
-  if (!plan.data && (plan.isError || !planIsLoading)) {
+  if (!hasCompanionArtifactPayload(artifact) && (plan.isError || !planIsLoading)) {
     const copy = localPlanLoadErrorCopy({
       slug,
       error: plan.error,
@@ -50,4 +51,10 @@ export function CompanionArtifactPage({
       feedback={feedback.data ?? null}
     />
   );
+}
+
+function hasCompanionArtifactPayload(
+  artifact: unknown,
+): artifact is { content?: unknown } {
+  return Boolean(artifact && typeof artifact === "object" && "content" in artifact);
 }

@@ -53,6 +53,7 @@ describe("CompanionHomePage interactions", () => {
             recapRoot: "/repo/docs/visual-companion/recaps",
             plans: [],
             recaps: [],
+            starterArtifacts: [],
           },
           additionalSources: includeAdditionalSources
             ? [

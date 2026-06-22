@@ -10,7 +10,7 @@ export function localPlanLoadErrorCopy(input: {
   if (input.companionKind) {
     const missing =
       !(input.error instanceof Error) ||
-      /not found|missing|could not be read|internal server error/i.test(
+      /not found|missing|could not be read|internal server error|enoent|no such file or directory/i.test(
         message,
       );
     return {

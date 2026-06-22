@@ -70,6 +70,11 @@ export default defineAction({
 
     for (const result of args.results) {
       const changedAt = nowIso();
+      const shouldConsume =
+        result.consume ??
+        (result.status === "resolved" ||
+          result.status === "declined" ||
+          result.status === "superseded");
       const importedEvidenceIds =
         result.evidence?.map((packet) => packet.evidenceId) ?? [];
       const evidencePackets: CompanionEvidencePacket[] =
@@ -111,7 +116,7 @@ export default defineAction({
           },
         });
 
-        if (result.consume !== false) {
+        if (shouldConsume) {
           await appendLocalPlanFeedbackEvent({
             folder: local.folder,
             event: {
@@ -126,7 +131,7 @@ export default defineAction({
 
       imported.push({
         commentIds: result.commentIds,
-        consumedCommentIds: result.consume === false ? [] : result.commentIds,
+        consumedCommentIds: shouldConsume ? result.commentIds : [],
         evidenceIds: importedEvidenceIds,
       });
     }

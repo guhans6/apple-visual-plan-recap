@@ -74,6 +74,18 @@ describe("CompanionHomePage", () => {
           recapRoot: "/repo/docs/visual-companion/recaps",
           plans: [],
           recaps: [],
+          starterArtifacts: [
+            {
+              slug: "generic-workflow-demo",
+              title: "Generic Service Rollout Plan",
+              kind: "plan",
+              routePath:
+                "/companion/plans/generic-workflow-demo?path=templates%2Fplan%2Fplans%2Fgeneric-workflow-demo",
+              repoPath: "templates/plan/plans/generic-workflow-demo",
+              updatedAt: null,
+              sourceLabel: "Built-in demos",
+            },
+          ],
         },
         additionalSources: [],
         additionalSourcesAvailable: false,
@@ -89,6 +101,8 @@ describe("CompanionHomePage", () => {
 
     expect(html).toContain("No companion artifacts yet");
     expect(html).toContain("/repo/docs/visual-companion");
+    expect(html).toContain("Generic Service Rollout Plan");
+    expect(html).toContain("templates/plan/plans/generic-workflow-demo");
   });
 
   it("keeps other sources behind an explicit collapsed section by default", () => {

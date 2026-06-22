@@ -2,6 +2,7 @@ import resolveLocalPlanFeedback from "./resolve-local-plan-feedback.js";
 
 export default {
   ...resolveLocalPlanFeedback,
+  requiresAuth: false,
   description:
     "Resolve or reopen local visual companion feedback by appending a sidecar event.",
   publicAgent: {

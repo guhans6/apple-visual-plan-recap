@@ -36,6 +36,7 @@ export function CompanionHomePage() {
   }
 
   const hasArtifacts = project.plans.length > 0 || project.recaps.length > 0;
+  const starterArtifacts = project.starterArtifacts ?? [];
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10">
@@ -61,6 +62,19 @@ export function CompanionHomePage() {
             This project stores plans and recaps under{" "}
             {project.companionRoot}.
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Open a built-in demo below to review the workflow before this repo
+            has its own companion artifacts.
+          </p>
+          <div className="mt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Built-in demos
+            </p>
+            {renderArtifactList(
+              starterArtifacts,
+              "No starter artifacts available.",
+            )}
+          </div>
         </section>
       ) : null}
 

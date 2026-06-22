@@ -17,6 +17,7 @@ export default defineAction({
     commentIds: z.array(z.string().min(1)).min(1),
     consumedBy: z.enum(["human", "agent", "import"]).optional(),
   }),
+  requiresAuth: false,
   publicAgent: {
     expose: true,
     readOnly: false,

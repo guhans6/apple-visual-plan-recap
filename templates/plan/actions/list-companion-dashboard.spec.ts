@@ -18,6 +18,11 @@ const action = (
     currentProject: {
       plans: Array<{ slug: string; title: string }>;
       recaps: Array<{ slug: string; title: string }>;
+      starterArtifacts: Array<{
+        slug: string;
+        title: string;
+        kind: "plan" | "recap";
+      }>;
     } | null;
   }>;
 };
@@ -80,6 +85,37 @@ describe("list-companion-dashboard action", () => {
       }),
     ]);
     expect(result.currentProject?.recaps).toEqual([]);
+    expect(result.currentProject?.starterArtifacts).toEqual([]);
+  });
+
+  it("returns repo-local starter artifacts when the current project has no companion folders yet", async () => {
+    await writeStarterArtifact(tmpDir, "generic-workflow-demo", {
+      title: "Generic Service Rollout Plan",
+      brief: "Generic demo brief",
+      kind: "plan",
+    });
+    await writeStarterArtifact(tmpDir, "apple-workflow-recap-demo", {
+      title: "Apple Settings Sync Recap",
+      brief: "Apple recap brief",
+      kind: "recap",
+    });
+
+    const result = await action.run({});
+
+    expect(result.currentProject?.plans).toEqual([]);
+    expect(result.currentProject?.recaps).toEqual([]);
+    expect(result.currentProject?.starterArtifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          slug: "generic-workflow-demo",
+          kind: "plan",
+        }),
+        expect.objectContaining({
+          slug: "apple-workflow-recap-demo",
+          kind: "recap",
+        }),
+      ]),
+    );
   });
 
   it("accepts boolean query-string values for includeAdditionalSources", () => {
@@ -91,3 +127,21 @@ describe("list-companion-dashboard action", () => {
     });
   });
 });
+
+async function writeStarterArtifact(
+  repoRoot: string,
+  slug: string,
+  input: { title: string; brief: string; kind: "plan" | "recap" },
+) {
+  const folder = path.join(repoRoot, "templates", "plan", "plans", slug);
+  await fs.mkdir(folder, { recursive: true });
+  const frontmatter =
+    input.kind === "recap"
+      ? `---\ntitle: ${input.title}\nbrief: ${input.brief}\nkind: recap\n---\n`
+      : `---\ntitle: ${input.title}\nbrief: ${input.brief}\n---\n`;
+  await fs.writeFile(
+    path.join(folder, "plan.mdx"),
+    `${frontmatter}\n# ${input.title}\n`,
+    "utf-8",
+  );
+}

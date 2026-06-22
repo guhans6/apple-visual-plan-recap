@@ -32,6 +32,7 @@ export default defineAction({
     commitOrDiffRef: z.string().optional(),
     changedBy: z.enum(["human", "agent", "import"]).optional(),
   }),
+  requiresAuth: false,
   publicAgent: {
     expose: true,
     readOnly: false,
