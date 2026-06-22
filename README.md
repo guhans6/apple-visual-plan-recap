@@ -36,7 +36,10 @@ The active product excludes:
 ## Verify
 
 ```sh
+nvm use
 pnpm test
 ```
 
 The retained workspace runs companion-focused package tests from the root.
+The workspace is pinned to Node 26 to keep native modules such as
+`better-sqlite3` aligned across root and `templates/plan` commands.

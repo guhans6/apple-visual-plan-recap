@@ -71,6 +71,7 @@ let parsePlanMdxFolder: (
 
 const OWNER = "owner@example.com";
 const ORG = "org-1";
+const RECAP_E2E_SETUP_TIMEOUT_MS = 30_000;
 
 /** Stable salvage marker (see `parsePlanContentWithSalvage` in plan-content.ts). */
 const UNKNOWN_MARKER = "__unknown_block__:";
@@ -230,7 +231,7 @@ beforeAll(async () => {
     .default as AnyAction;
   parsePlanMdxFolder = (await import("../server/plan-mdx.js"))
     .parsePlanMdxFolder as typeof parsePlanMdxFolder;
-});
+}, RECAP_E2E_SETUP_TIMEOUT_MS);
 
 afterAll(() => {
   client?.close();

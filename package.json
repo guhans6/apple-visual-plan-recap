@@ -4,15 +4,16 @@
   "type": "module",
   "packageManager": "pnpm@10.29.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=26 <27"
   },
   "description": "Private visual companion workspace derived from BuilderIO agent-native.",
   "scripts": {
+    "preinstall": "node scripts/ensure-node.mjs",
     "setup": "pnpm install",
-    "build": "pnpm --filter @agent-native/core --filter @agent-native/skills --filter plan run build",
-    "dev": "pnpm --filter plan dev",
-    "typecheck": "pnpm --filter @agent-native/core typecheck && pnpm --filter @agent-native/skills typecheck && pnpm --filter plan typecheck",
-    "test": "pnpm --filter @agent-native/skills test && pnpm --filter plan exec vitest --run server/lib/companion-manifest.spec.ts server/lib/companion-recap-coverage.spec.ts server/lib/companion-feedback-selectors.spec.ts server/lib/local-companion-dashboard.spec.ts actions/companion-actions.spec.ts actions/local-companion-access.spec.ts server/plugins/auth.local-companion.spec.ts app/hooks/use-companion-plan.spec.ts app/pages/companion-shell.spec.ts app/pages/CompanionPage.test.tsx app/pages/CompanionHomePage.test.tsx app/pages/CompanionHomePage.interaction.spec.tsx actions/get-companion-plan.fixture.spec.ts actions/get-companion-generic.fixture.spec.ts actions/get-companion-recap.fixture.spec.ts actions/list-companion-dashboard.spec.ts && node --test test/*.test.mjs"
+    "build": "node scripts/ensure-node.mjs && pnpm --filter @agent-native/core --filter @agent-native/skills --filter plan run build",
+    "dev": "node scripts/ensure-node.mjs && pnpm --filter plan dev",
+    "typecheck": "node scripts/ensure-node.mjs && pnpm --filter @agent-native/core typecheck && pnpm --filter @agent-native/skills typecheck && pnpm --filter plan typecheck",
+    "test": "node scripts/ensure-node.mjs && pnpm --filter @agent-native/skills test && pnpm --filter plan exec vitest --run server/lib/companion-manifest.spec.ts server/lib/companion-recap-coverage.spec.ts server/lib/companion-feedback-selectors.spec.ts server/lib/local-companion-dashboard.spec.ts actions/companion-actions.spec.ts actions/local-companion-access.spec.ts server/plugins/auth.local-companion.spec.ts app/hooks/use-companion-plan.spec.ts app/pages/companion-shell.spec.ts app/pages/CompanionPage.test.tsx app/pages/CompanionHomePage.test.tsx app/pages/CompanionHomePage.interaction.spec.tsx actions/get-companion-plan.fixture.spec.ts actions/get-companion-generic.fixture.spec.ts actions/get-companion-recap.fixture.spec.ts actions/list-companion-dashboard.spec.ts && node --test test/*.test.mjs"
   },
   "devDependencies": {
     "tsx": "^4.20.3"
