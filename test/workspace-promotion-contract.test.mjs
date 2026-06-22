@@ -47,11 +47,15 @@ test("promoted companion app drops legacy compatibility routes", async () => {
 test("root package delegates dev and test flows to the promoted workspace", async () => {
   const pkg = JSON.parse(await readRepoFile("package.json"));
 
+  assert.equal(pkg.engines.node, ">=26 <27");
   assert.match(pkg.scripts.dev, /pnpm --filter plan dev/);
+  assert.match(pkg.scripts.dev, /node scripts\/ensure-node\.mjs/);
   assert.match(pkg.scripts.test, /pnpm --filter plan/);
+  assert.match(pkg.scripts.test, /node scripts\/ensure-node\.mjs/);
   assert.match(pkg.scripts.test, /vitest --run/);
   assert.match(pkg.scripts.test, /node --test test\/\*\.test\.mjs/);
   assert.match(pkg.scripts.typecheck, /pnpm --filter plan typecheck/);
+  assert.match(pkg.scripts.typecheck, /node scripts\/ensure-node\.mjs/);
 });
 
 test("promoted plan dev server ignores generated runtime artifacts", async () => {
@@ -66,7 +70,24 @@ test("promoted plan dev server ignores generated runtime artifacts", async () =>
 test("promoted plan dev script does not auto-open a browser", async () => {
   const pkg = JSON.parse(await readRepoFile("templates/plan/package.json"));
 
-  assert.equal(pkg.scripts.dev, "agent-native dev");
+  assert.equal(pkg.engines.node, ">=26 <27");
+  assert.match(pkg.scripts.dev, /node \.\.\/\.\.\/scripts\/ensure-node\.mjs && agent-native dev/);
+});
+
+test("workspace pins one Node major for root and promoted packages", async () => {
+  const rootPkg = JSON.parse(await readRepoFile("package.json"));
+  const corePkg = JSON.parse(await readRepoFile("packages/core/package.json"));
+  const skillsPkg = JSON.parse(await readRepoFile("packages/skills/package.json"));
+  const planPkg = JSON.parse(await readRepoFile("templates/plan/package.json"));
+  const nvmrc = (await readRepoFile(".nvmrc")).trim();
+  const nodeVersion = (await readRepoFile(".node-version")).trim();
+
+  for (const pkg of [rootPkg, corePkg, skillsPkg, planPkg]) {
+    assert.equal(pkg.engines.node, ">=26 <27");
+  }
+
+  assert.equal(nvmrc, "26");
+  assert.equal(nodeVersion, "26");
 });
 
 test("root README points at promoted companion workspace paths", async () => {

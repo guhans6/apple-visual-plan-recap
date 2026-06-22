@@ -13,6 +13,10 @@ app operations and tools, see AGENTS.md.
 
 ## Commands
 
+Use Node 26 for all commands in this workspace. From the repo root, run
+`nvm use` before `pnpm install`, `pnpm test`, or `pnpm dev` so native modules
+like `better-sqlite3` rebuild against the same runtime that serves the app.
+
 - **Dev:** `pnpm dev` (Vite dev server with both React Router + Nitro plugins — defaults to http://localhost:8080)
 - **Build:** `pnpm build` (React Router build — client + SSR + Nitro server)
 - **Start:** `node .output/server/index.mjs` (production)

@@ -17,12 +17,12 @@ try {
   _version = pkg.version;
 } catch {}
 
-// Fail fast on unsupported Node versions. `engines.node: ">=22"` is only
+// Fail fast on unsupported Node versions. `engines.node: ">=26 <27"` is only
 // advisory — npx/pnpm merely warn — so without this an older Node (18/20)
 // first fails deep inside a scaffold dynamic import with a cryptic
 // ERR_MODULE / syntax error that `handleScaffoldImportError` misreports as a
 // corrupt npx cache. A clear up-front message saves that whole detour.
-const REQUIRED_NODE_MAJOR = 22;
+const REQUIRED_NODE_MAJOR = 26;
 const _nodeMajor = Number(process.versions.node.split(".")[0]);
 if (Number.isFinite(_nodeMajor) && _nodeMajor < REQUIRED_NODE_MAJOR) {
   console.error(

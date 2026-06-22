@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=26 <27"
   },
   "description": "Core runtime and CLI for the local visual companion workspace.",
   "license": "UNLICENSED",

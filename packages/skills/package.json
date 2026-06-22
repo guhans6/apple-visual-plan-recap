@@ -3,6 +3,9 @@
   "version": "0.2.22",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=26 <27"
+  },
   "description": "Skill catalog package for the local visual companion workspace.",
   "license": "UNLICENSED",
   "bin": {
