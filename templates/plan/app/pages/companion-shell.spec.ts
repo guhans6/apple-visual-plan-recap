@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCompanionWorkspaceModel } from "./companion-shell";
 
 describe("buildCompanionWorkspaceModel", () => {
-  it("derives Apple review-pack signals from shared plan and evidence data", () => {
+  it("renders explicit domain review-pack signals from the companion manifest", () => {
     const model = buildCompanionWorkspaceModel({
       slug: "settings-flow",
       kind: "plan",
@@ -25,6 +25,28 @@ describe("buildCompanionWorkspaceModel", () => {
         events: [{ type: "feedback-resolved" }],
         companionManifest: {
           targets: [{ id: "apple-evidence-panel" }],
+          reviewPacks: [
+            {
+              id: "apple-review",
+              title: "Apple review pack",
+              items: [
+                {
+                  id: "apple-targets",
+                  title: "Targets & schemes",
+                  status: "mapped",
+                  detail:
+                    "Target and scheme review stays attached to the companion source map.",
+                },
+                {
+                  id: "apple-preview-simulator",
+                  title: "Preview & simulator",
+                  status: "verified",
+                  detail:
+                    "Preview and simulator proof is present in the shared evidence packets.",
+                },
+              ],
+            },
+          ],
         },
         companionFeedback: {
           ordered: [
@@ -68,7 +90,7 @@ describe("buildCompanionWorkspaceModel", () => {
       },
     });
 
-    expect(model.appleReviewPack).toEqual([
+    expect(model.reviewPackItems).toEqual([
       expect.objectContaining({
         title: "Targets & schemes",
         status: "mapped",
@@ -76,14 +98,6 @@ describe("buildCompanionWorkspaceModel", () => {
       expect.objectContaining({
         title: "Preview & simulator",
         status: "verified",
-      }),
-      expect.objectContaining({
-        title: "Migrations & extensions",
-        status: "covered",
-      }),
-      expect.objectContaining({
-        title: "Release risk",
-        status: "assumed",
       }),
     ]);
     expect(model.importedResults).toEqual([
@@ -95,6 +109,29 @@ describe("buildCompanionWorkspaceModel", () => {
         commitOrDiffRef: "7741abdda",
       }),
     ]);
+  });
+
+  it("does not infer an Apple review pack from title or block names alone", () => {
+    const model = buildCompanionWorkspaceModel({
+      slug: "settings-flow",
+      kind: "plan",
+      plan: {
+        plan: {
+          title: "Apple Settings Sync Plan",
+          content: {
+            blocks: [{ id: "apple-evidence-panel" }],
+          },
+        },
+        companionManifest: {
+          targets: [{ id: "apple-evidence-panel" }],
+        },
+      },
+      feedback: {
+        pending: [],
+      },
+    });
+
+    expect(model.reviewPackItems).toEqual([]);
   });
 
   it("keeps generic companion states quiet when Apple signals are absent", () => {
@@ -121,7 +158,7 @@ describe("buildCompanionWorkspaceModel", () => {
       },
     });
 
-    expect(model.appleReviewPack).toEqual([]);
+    expect(model.reviewPackItems).toEqual([]);
     expect(model.cards.find((card) => card.id === "feedback")).toMatchObject({
       detail: "No pending agent-targeted feedback right now.",
     });

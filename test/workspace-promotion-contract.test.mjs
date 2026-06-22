@@ -54,6 +54,21 @@ test("root package delegates dev and test flows to the promoted workspace", asyn
   assert.match(pkg.scripts.typecheck, /pnpm --filter plan typecheck/);
 });
 
+test("promoted plan dev server ignores generated runtime artifacts", async () => {
+  const viteConfig = await readRepoFile("templates/plan/vite.config.ts");
+
+  assert.match(viteConfig, /\.react-router/);
+  assert.match(viteConfig, /\.deploy-tmp/);
+  assert.match(viteConfig, /test-results/);
+  assert.match(viteConfig, /\bdata\b/);
+});
+
+test("promoted plan dev script does not auto-open a browser", async () => {
+  const pkg = JSON.parse(await readRepoFile("templates/plan/package.json"));
+
+  assert.equal(pkg.scripts.dev, "agent-native dev");
+});
+
 test("root README points at promoted companion workspace paths", async () => {
   const readme = await readRepoFile("README.md");
 

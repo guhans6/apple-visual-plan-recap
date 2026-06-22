@@ -175,27 +175,27 @@ function CompanionRecapReview({
   );
 }
 
-function CompanionAppleReviewPack({
+function CompanionReviewPack({
   model,
 }: {
   model: CompanionWorkspaceModel;
 }) {
-  if (model.appleReviewPack.length === 0) return null;
+  if (model.reviewPackItems.length === 0) return null;
 
   return (
     <section className="border-b border-border/60 bg-background/72">
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            Apple review pack
+            Review pack
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Apple-specific review signals reuse the shared companion evidence
-            and risk model.
+            Domain review signals reuse the shared companion evidence and risk
+            model.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {model.appleReviewPack.map((item) => (
+          {model.reviewPackItems.map((item) => (
             <article
               key={item.id}
               className="rounded-3xl border border-border/60 bg-background/92 p-4 shadow-sm backdrop-blur"
@@ -316,7 +316,7 @@ export function CompanionWorkspaceShell({
           </div>
         </div>
       </header>
-      <CompanionAppleReviewPack model={model} />
+      <CompanionReviewPack model={model} />
       <CompanionImportedResults model={model} />
       <CompanionEvidencePacketList model={model} />
       <CompanionRecapReview model={model} />
