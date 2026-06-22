@@ -1,26 +1,42 @@
-# Apple Visual Plan/Recap
+# Visual Companion
 
-Apple-focused visual planning and recap workflow for coding agents.
+Private review desk for coding-agent artifacts.
 
-This project narrows the BuilderIO visual-plan and visual-recap idea to Apple
-development workflows: Swift, SwiftUI, UIKit, AppKit, SwiftData, Xcode targets,
-schemes, previews, simulators, signing, entitlements, privacy, TestFlight, and
-App Store review.
+This repo opens project companion plans, recaps, diffs, evidence, and imported results,
+lets a developer leave structured feedback on exact targets, and keeps the
+review trail in readable project files.
 
-The goal is not to generate production Apple UI. The goal is a local-first
-collaboration surface where a developer can inspect rendered plans/recaps,
-annotate stable visual blocks, and let an agent read and consume that feedback.
+This repo started from `BuilderIO/agent-native` and now maintains a narrowed
+visual companion product boundary.
 
-## Current Artifacts
+## Active Product Boundary
 
-- PRD: `docs/prd/apple-visual-plan-recap-prd.md`
-- Issue slices: `docs/issues/apple-visual-plan-recap-issues.md`
-- Implementation plan: `docs/superpowers/plans/2026-06-17-apple-visual-plan-recap.md`
-- Gatekeeper review: `docs/reviews/apple-visual-gatekeeper-review.md`
+The active product includes:
 
-## Upstream References
+- project companion plan, recap, diff, and evidence review
+- structured feedback and follow-up state in companion files
+- companion UI and actions required for that review loop
 
-- BuilderIO skills: https://github.com/BuilderIO/skills
-- Agent-Native: https://github.com/BuilderIO/agent-native
+The active product excludes:
 
-Forks should preserve upstream license notices where copied material is used.
+- remote-service positioning
+- share or public distribution paths
+- embedded chat surfaces
+- organization features
+- multi-template workspace positioning
+
+## Current Planning Artifacts
+
+- PRD: `docs/prd/2026-06-18-local-visual-companion.md`
+- Bootstrap PRD: `docs/prd/2026-06-20-project-local-visual-companion-bootstrap.md`
+- Home dashboard PRD: `docs/prd/2026-06-20-local-companion-home-dashboard.md`
+- Root prune plan: `docs/superpowers/plans/2026-06-22-visual-companion-repo-prune-root.md`
+- Companion workflow: `templates/plan/docs/visual-companion-workflow.md`
+
+## Verify
+
+```sh
+pnpm test
+```
+
+The retained workspace runs companion-focused package tests from the root.

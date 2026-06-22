@@ -1,0 +1,151 @@
+import { defineAction } from "@agent-native/core";
+import { z } from "zod";
+import { exportPlanContentToMdxFolder } from "../server/plan-mdx.js";
+import { buildPlanHtml, nowIso } from "../server/plans.js";
+import {
+  getLocalPlanOwnerEmail,
+  isLocalPlanRuntime,
+} from "../server/lib/local-identity.js";
+import { readLocalPlanFeedback } from "../server/lib/local-plan-feedback.js";
+import { readPlanLocalFolder } from "../server/lib/local-plan-files.js";
+import {
+  companionRoutePath,
+  inferCompanionRouteKind,
+} from "../shared/companion-routes.js";
+import type { PlanBundle, PlanKind } from "../shared/types.js";
+
+const localPlanKindSchema = z.enum(["plan", "recap"]);
+
+export default defineAction({
+  description:
+    "Read a DB-free local Visual Companion MDX folder from PLAN_LOCAL_DIR or an optional repo-relative path for privacy-focused local-files preview. This never reads schema.plans and never writes to the database.",
+  schema: z.object({
+    slug: z
+      .string()
+      .min(1)
+      .regex(/^[A-Za-z0-9._-]+$/)
+      .describe(
+        "Folder name under PLAN_LOCAL_DIR, for example checkout-review.",
+      ),
+    path: z
+      .string()
+      .optional()
+      .describe(
+        "Optional repo-relative folder path, for example plans/checkout-review.",
+      ),
+    kind: localPlanKindSchema.optional(),
+  }),
+  http: { method: "GET" },
+  readOnly: true,
+  publicAgent: {
+    expose: true,
+    readOnly: true,
+    requiresAuth: false,
+    title: "Get Local Plan Folder",
+    description:
+      "Read a local MDX plan folder by slug or repo-relative path without touching the Plan app database.",
+  },
+  run: async (args) => {
+    if (!isLocalPlanRuntime()) {
+      throw new Error(
+        "Local plan folder preview is only available in local Plan runtime.",
+      );
+    }
+
+    const local = await readPlanLocalFolder({
+      slug: args.slug,
+      path: args.path,
+    });
+    const now = nowIso();
+    const title = local.content.title || args.slug;
+    const brief = local.content.brief || "Local files preview.";
+    const id = `local-${args.slug}`;
+    const kind = resolveLocalPlanKind(args.kind, local.mdx) as PlanKind;
+    const feedback = await readLocalPlanFeedback({
+      planId: id,
+      slug: local.slug,
+      folder: local.folder,
+    });
+    const bundle: PlanBundle = {
+      plan: {
+        id,
+        title,
+        brief,
+        kind,
+        status: "review",
+        source: "imported",
+        repoPath: local.folder,
+        currentFocus: "local-files preview",
+        html: null,
+        markdown: local.mdx["plan.mdx"],
+        content: local.content,
+        createdAt: now,
+        updatedAt: now,
+        approvedAt: null,
+      },
+      access: {
+        role: "viewer",
+        ownerEmail: getLocalPlanOwnerEmail(),
+        orgId: null,
+        visibility: "private",
+      },
+      sections: [],
+      comments: feedback.comments,
+      events: feedback.events,
+      summary: {
+        sectionCounts: {},
+        commentCount: feedback.summary.commentCount,
+        openCommentCount: feedback.summary.openCommentCount,
+      },
+    };
+
+    return {
+      ...bundle,
+      planId: id,
+      localOnly: true,
+      slug: local.slug,
+      folder: local.folder,
+      repoPath: local.repoPath,
+      path: local.routePath,
+      url: local.url,
+      suggestedRepoPath: local.suggestedRepoPath,
+      html: buildPlanHtml(bundle),
+      mdx: await exportPlanContentToMdxFolder({
+        content: bundle.plan.content,
+        title: bundle.plan.title,
+        brief: bundle.plan.brief,
+        planId: bundle.plan.id,
+        url: local.routePath,
+      }),
+    };
+  },
+  link: ({ args }) => ({
+    url: companionRoutePath(
+      inferCompanionRouteKind(args.path),
+      args.slug,
+      args.path,
+    ),
+    label: "Open Local Plan",
+    view: "plan",
+  }),
+});
+
+function resolveLocalPlanKind(
+  explicit: "plan" | "recap" | undefined,
+  mdx: { "plan.mdx": string; ".plan-state.json"?: string },
+): "plan" | "recap" {
+  if (explicit) return explicit;
+  const frontmatterMatch = mdx["plan.mdx"].match(
+    /^---[\s\S]*?^kind:\s*["']?(plan|recap)["']?\s*$/m,
+  );
+  if (frontmatterMatch) return frontmatterMatch[1] as "plan" | "recap";
+  try {
+    const state = mdx[".plan-state.json"]
+      ? (JSON.parse(mdx[".plan-state.json"]) as { kind?: unknown })
+      : null;
+    if (state?.kind === "plan" || state?.kind === "recap") return state.kind;
+  } catch {
+    // Optional state file.
+  }
+  return "plan";
+}

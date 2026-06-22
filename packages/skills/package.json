@@ -1,0 +1,36 @@
+{
+  "name": "@agent-native/skills",
+  "version": "0.2.22",
+  "private": true,
+  "type": "module",
+  "description": "Skill catalog package for the local visual companion workspace.",
+  "license": "UNLICENSED",
+  "bin": {
+    "skills": "dist/cli.js"
+  },
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "catalog"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run src --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@agent-native/core": "workspace:*",
+    "@clack/prompts": "^1.5.1"
+  }
+}

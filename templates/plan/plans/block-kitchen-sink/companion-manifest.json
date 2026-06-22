@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "slug": "block-kitchen-sink",
+  "kind": "plan",
+  "generatedAt": "2026-06-22T11:34:54.146Z",
+  "targets": [
+    {
+      "id": "rt-intro",
+      "targetKind": "document-block",
+      "label": "rt-intro",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 9,
+        "endLine": 9
+      }
+    },
+    {
+      "id": "callout-decision",
+      "targetKind": "document-block",
+      "label": "callout-decision",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 27,
+        "endLine": 27
+      }
+    },
+    {
+      "id": "check-accept",
+      "targetKind": "document-block",
+      "label": "check-accept",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 34,
+        "endLine": 34
+      }
+    },
+    {
+      "id": "table-api",
+      "targetKind": "evidence-row",
+      "label": "table-api",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 60,
+        "endLine": 60
+      }
+    },
+    {
+      "id": "code-impl",
+      "targetKind": "code-reference",
+      "label": "code-impl",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 70,
+        "endLine": 70
+      }
+    },
+    {
+      "id": "custom-html-card",
+      "targetKind": "document-block",
+      "label": "Success card",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 89,
+        "endLine": 89
+      }
+    },
+    {
+      "id": "decision-codes",
+      "targetKind": "document-block",
+      "label": "How should we generate short codes?",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 97,
+        "endLine": 97
+      }
+    },
+    {
+      "id": "rt-wrap",
+      "targetKind": "document-block",
+      "label": "rt-wrap",
+      "sourcePath": "plan.mdx",
+      "sourceRange": {
+        "startLine": 122,
+        "endLine": 122
+      }
+    }
+  ]
+}
