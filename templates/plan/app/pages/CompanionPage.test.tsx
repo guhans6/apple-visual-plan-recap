@@ -5,11 +5,16 @@ import { MemoryRouter } from "react-router";
 const hookMocks = vi.hoisted(() => ({
   useCompanionPlan: vi.fn(),
   useCompanionFeedback: vi.fn(),
+  useUpdateCompanionFeedback: vi.fn(() => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  })),
 }));
 
 vi.mock("@/hooks/use-companion-plan", () => ({
   useCompanionPlan: hookMocks.useCompanionPlan,
   useCompanionFeedback: hookMocks.useCompanionFeedback,
+  useUpdateCompanionFeedback: hookMocks.useUpdateCompanionFeedback,
 }));
 
 import { CompanionPage } from "./CompanionPage";
@@ -46,6 +51,34 @@ describe("CompanionPage", () => {
       "This plan could not be found in the current companion workspace.",
     );
     expect(html).not.toContain("missing-flow:plan:true");
+  });
+
+  it("does not render an empty artifact while a companion plan load has no data", () => {
+    hookMocks.useCompanionPlan.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isError: false,
+      isLoading: false,
+      isFetching: false,
+    });
+    hookMocks.useCompanionFeedback.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isError: false,
+    });
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <CompanionPage slug="missing-flow" kind="plan" />
+      </MemoryRouter>,
+    );
+
+    expect(html).toContain("Plan not found");
+    expect(html).toContain(
+      "This plan could not be found in the current companion workspace.",
+    );
+    expect(html).not.toContain("Untitled plan");
+    expect(html).not.toContain("data-testid=\"companion-artifact-editor\"");
   });
 
   it("renders a dedicated companion workspace shell around the plan surface", () => {
@@ -108,6 +141,28 @@ describe("CompanionPage", () => {
         ],
         companionManifest: {
           targets: [{ id: "apple-evidence-panel" }],
+          reviewPacks: [
+            {
+              id: "apple-review",
+              title: "Apple review pack",
+              items: [
+                {
+                  id: "apple-preview-simulator",
+                  title: "Preview & simulator",
+                  status: "verified",
+                  detail:
+                    "Preview and simulator proof is present in the shared evidence packets.",
+                },
+                {
+                  id: "apple-release-risk",
+                  title: "Release risk",
+                  status: "assumed",
+                  detail:
+                    "Release readiness still depends on reviewer signoff and other human checks.",
+                },
+              ],
+            },
+          ],
         },
         companionFeedback: {
           ordered: [
@@ -149,7 +204,14 @@ describe("CompanionPage", () => {
     });
     hookMocks.useCompanionFeedback.mockReturnValue({
       data: {
-        pending: [{ id: "fb_evidence_1" }],
+        pending: [
+          {
+            id: "fb_evidence_1",
+            status: "open",
+            resolutionTarget: "agent",
+            message: "Capture final proof.",
+          },
+        ],
       },
     });
 
@@ -165,7 +227,7 @@ describe("CompanionPage", () => {
     expect(html).toContain("Context");
     expect(html).toContain("History");
     expect(html).toContain("Evidence");
-    expect(html).toContain("Apple review pack");
+    expect(html).toContain("Review pack");
     expect(html).toContain("Preview &amp; simulator");
     expect(html).toContain("Release risk");
     expect(html).toContain("Imported results");
@@ -179,6 +241,10 @@ describe("CompanionPage", () => {
     expect(html).toContain("verified");
     expect(html).toContain("fb_evidence_1");
     expect(html).toContain("apple-evidence-panel");
+    expect(html).toContain("data-testid=\"companion-review-sidebar\"");
+    expect(html).toContain("Review comments");
+    expect(html).toContain("Capture final proof.");
+    expect(html).toContain("Comment on selected text");
     expect(html).toContain("data-testid=\"companion-artifact-editor\"");
     expect(html).not.toContain("data-testid=\"plans-page\"");
   });
@@ -319,7 +385,7 @@ describe("CompanionPage", () => {
 
     expect(html).toContain("Generic Service Rollout Plan");
     expect(html).toContain("No pending agent-targeted feedback right now.");
-    expect(html).not.toContain("Apple review pack");
+    expect(html).not.toContain("Review pack");
     expect(html).not.toContain("Evidence review");
     expect(html).not.toContain("Recap review");
     expect(html).toContain("data-testid=\"companion-artifact-editor\"");

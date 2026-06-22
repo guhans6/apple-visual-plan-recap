@@ -27,12 +27,26 @@ export interface CompanionManifestTarget {
   linkedBlockId?: string;
 }
 
+export interface CompanionManifestReviewPackItem {
+  id: string;
+  title: string;
+  status: string;
+  detail: string;
+}
+
+export interface CompanionManifestReviewPack {
+  id: string;
+  title: string;
+  items: CompanionManifestReviewPackItem[];
+}
+
 export interface CompanionManifest {
   version: 1;
   slug: string;
   kind: PlanKind;
   generatedAt: string;
   targets: CompanionManifestTarget[];
+  reviewPacks?: CompanionManifestReviewPack[];
   recapCoverage?: CompanionRecapCoverage;
 }
 

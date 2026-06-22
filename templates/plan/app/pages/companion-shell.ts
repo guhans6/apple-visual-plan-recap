@@ -13,6 +13,16 @@ type CompanionPlanData = {
   events?: Array<{ type?: string | null }> | null;
   companionManifest?: {
     targets?: Array<{ id?: string | null }> | null;
+    reviewPacks?: Array<{
+      id?: string | null;
+      title?: string | null;
+      items?: Array<{
+        id?: string | null;
+        title?: string | null;
+        status?: string | null;
+        detail?: string | null;
+      }> | null;
+    }> | null;
   } | null;
   companionFeedback?: {
     ordered?: Array<{
@@ -78,7 +88,7 @@ export type CompanionWorkspaceModel = {
   title: string;
   subtitle: string;
   cards: CompanionWorkspaceCard[];
-  appleReviewPack: Array<{
+  reviewPackItems: Array<{
     id: string;
     title: string;
     status: string;
@@ -138,13 +148,6 @@ export function buildCompanionWorkspaceModel(input: {
   const kindLabel =
     input.kind === "recap" ? "Recap workspace" : "Plan workspace";
   const title = plan?.plan?.title?.trim() || input.slug;
-  const blockIds =
-    plan?.plan?.content?.blocks
-      ?.map((block) => block.id?.trim())
-      .filter((blockId): blockId is string => Boolean(blockId)) ?? [];
-  const hasAppleContext =
-    title.toLowerCase().includes("apple") ||
-    blockIds.some((blockId) => blockId.startsWith("apple-"));
   const subtitle =
     plan?.folder?.trim() ||
     plan?.repoPath?.trim() ||
@@ -195,9 +198,23 @@ export function buildCompanionWorkspaceModel(input: {
       : (plan?.recapCoverage?.links?.reduce((count, link) => {
           return count + (link.evidenceIds?.length ?? 0);
         }, 0) ?? targetCount);
-  const appleReviewPack = hasAppleContext
-    ? buildAppleReviewPack({ blockIds, evidencePackets })
-    : [];
+  const reviewPackItems =
+    plan?.companionManifest?.reviewPacks
+      ?.flatMap((pack) => pack.items ?? [])
+      .filter(
+        (item): item is {
+          id?: string | null;
+          title?: string | null;
+          status?: string | null;
+          detail?: string | null;
+        } => Boolean(item?.id && item.title && item.status && item.detail),
+      )
+      .map((item) => ({
+        id: item.id ?? "",
+        title: item.title ?? "",
+        status: item.status ?? "",
+        detail: item.detail ?? "",
+      })) ?? [];
   const importedResults =
     plan?.companionFeedback?.ordered
       ?.filter(
@@ -225,7 +242,7 @@ export function buildCompanionWorkspaceModel(input: {
     kind: input.kind,
     title,
     subtitle,
-    appleReviewPack,
+    reviewPackItems,
     importedResults,
     evidencePackets,
     recapLinks,
@@ -276,70 +293,4 @@ export function buildCompanionWorkspaceModel(input: {
       },
     ],
   };
-}
-
-function buildAppleReviewPack(input: {
-  blockIds: string[];
-  evidencePackets: CompanionWorkspaceModel["evidencePackets"];
-}): CompanionWorkspaceModel["appleReviewPack"] {
-  const hasBlock = (blockId: string) => input.blockIds.includes(blockId);
-  const hasEvidence = (
-    predicate: (packet: CompanionWorkspaceModel["evidencePackets"][number]) => boolean,
-  ) => input.evidencePackets.some(predicate);
-  const hasVerifiedEvidence = (
-    predicate: (packet: CompanionWorkspaceModel["evidencePackets"][number]) => boolean,
-  ) => input.evidencePackets.some((packet) => packet.status === "verified" && predicate(packet));
-  const previewVerified = hasVerifiedEvidence(
-    (packet) =>
-      packet.kind === "screenshot" ||
-      packet.planTargetIds.includes("apple-evidence-panel") ||
-      packet.command?.includes("Simulator") === true,
-  );
-  const releaseAssumed = hasEvidence(
-    (packet) =>
-      packet.status !== "verified" &&
-      (packet.kind === "reviewer-note" ||
-        packet.planTargetIds.includes("apple-decision-form")),
-  );
-
-  return [
-    {
-      id: "apple-targets",
-      title: "Targets & schemes",
-      status: hasBlock("apple-target-scheme-map") ? "mapped" : "missing",
-      detail: hasBlock("apple-target-scheme-map")
-        ? "Target and scheme review stays attached to the companion source map."
-        : "Target and scheme mapping has not been surfaced yet.",
-    },
-    {
-      id: "apple-preview-simulator",
-      title: "Preview & simulator",
-      status: previewVerified ? "verified" : "pending",
-      detail: previewVerified
-        ? "Preview and simulator proof is present in the shared evidence packets."
-        : "Preview and simulator checks still need explicit proof.",
-    },
-    {
-      id: "apple-migrations",
-      title: "Migrations & extensions",
-      status:
-        hasBlock("apple-data-migration") &&
-        hasBlock("apple-intents-widgets-extensions")
-          ? "covered"
-          : "partial",
-      detail:
-        hasBlock("apple-data-migration") &&
-        hasBlock("apple-intents-widgets-extensions")
-          ? "Data migration and extension review remain visible in the companion workspace."
-          : "Migration and extension review coverage is incomplete.",
-    },
-    {
-      id: "apple-release-risk",
-      title: "Release risk",
-      status: releaseAssumed ? "assumed" : "clear",
-      detail: releaseAssumed
-        ? "Release readiness still depends on reviewer signoff and other human checks."
-        : "No unresolved release-risk assumptions are currently attached.",
-    },
-  ];
 }

@@ -16,7 +16,15 @@ export function CompanionArtifactPage({
 }) {
   const plan = useCompanionPlan(slug, kind, repoPath);
   const feedback = useCompanionFeedback(slug, repoPath);
-  if (plan.isError && !plan.data) {
+  const planIsLoading =
+    Boolean(
+      (plan as { isLoading?: unknown; isPending?: unknown; isFetching?: unknown })
+        .isLoading,
+    ) ||
+    Boolean((plan as { isPending?: unknown }).isPending) ||
+    Boolean((plan as { isFetching?: unknown }).isFetching);
+
+  if (!plan.data && (plan.isError || !planIsLoading)) {
     const copy = localPlanLoadErrorCopy({
       slug,
       error: plan.error,
