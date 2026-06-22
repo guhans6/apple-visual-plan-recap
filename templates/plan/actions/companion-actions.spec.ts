@@ -540,4 +540,67 @@ describe("companion local actions", () => {
     );
     expect(feedback.pending).toEqual([]);
   });
+
+  it("does not consume pending feedback by default for non-terminal imported statuses", async () => {
+    const content = sampleContent();
+    await writePlanLocalFiles({
+      planId: "plan_settings",
+      title: content.title ?? "Settings flow",
+      brief: content.brief,
+      content,
+      url: "/companion/plans/settings-flow",
+    });
+
+    await updateFeedback.run({
+      slug: "settings-flow",
+      comments: [
+        {
+          id: "fb_import_progress",
+          message: "Start validating the command output.",
+          resolutionTarget: "agent",
+          anchor: JSON.stringify({ targetBlockId: "verification-evidence" }),
+        },
+      ],
+    });
+
+    const imported = await importResult.run({
+      slug: "settings-flow",
+      results: [
+        {
+          commentIds: ["fb_import_progress"],
+          status: "in_progress",
+          resolutionSummary: "Started validating the imported result packet.",
+          changedFiles: ["Sources/SettingsStore.swift"],
+          evidenceRefs: ["ev_progress"],
+        },
+      ],
+    });
+
+    const plan = await getPlan.run({ slug: "settings-flow", kind: "plan" });
+    const feedback = await getFeedback.run({ slug: "settings-flow" });
+
+    expect(imported.imported).toEqual([
+      expect.objectContaining({
+        commentIds: ["fb_import_progress"],
+        consumedCommentIds: [],
+        evidenceIds: [],
+      }),
+    ]);
+    expect(plan.companionFeedback?.ordered).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "fb_import_progress",
+          status: "in_progress",
+          resolutionSummary: "Started validating the imported result packet.",
+          changedFiles: ["Sources/SettingsStore.swift"],
+          evidenceRefs: ["ev_progress"],
+        }),
+      ]),
+    );
+    expect(feedback.pending).toEqual([
+      expect.objectContaining({
+        id: "fb_import_progress",
+      }),
+    ]);
+  });
 });

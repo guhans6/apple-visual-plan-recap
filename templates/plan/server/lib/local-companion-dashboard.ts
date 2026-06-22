@@ -25,6 +25,7 @@ export interface LocalCompanionDashboardProject {
   recapRoot: string;
   plans: LocalCompanionDashboardEntry[];
   recaps: LocalCompanionDashboardEntry[];
+  starterArtifacts: LocalCompanionDashboardEntry[];
 }
 
 export interface LocalCompanionDashboardData {
@@ -46,6 +47,8 @@ export async function listLocalCompanionDashboard(_input?: {
   const planRoot = dashboardPlanRoot(repoRoot);
   const companionRoot = inferCompanionRoot(repoRoot, planRoot);
   const recapRoot = inferRecapRoot(repoRoot, companionRoot, planRoot);
+  const plans = await listDashboardEntries(repoRoot, planRoot, "plan");
+  const recaps = await listDashboardEntries(repoRoot, recapRoot, "recap");
   const additionalSources = _input?.includeAdditionalSources
     ? await listAdditionalSources(repoRoot)
     : [];
@@ -56,8 +59,12 @@ export async function listLocalCompanionDashboard(_input?: {
       companionRoot,
       planRoot,
       recapRoot,
-      plans: await listDashboardEntries(repoRoot, planRoot, "plan"),
-      recaps: await listDashboardEntries(repoRoot, recapRoot, "recap"),
+      plans,
+      recaps,
+      starterArtifacts:
+        plans.length === 0 && recaps.length === 0
+          ? await listStarterArtifacts(repoRoot)
+          : [],
     },
     additionalSources,
     additionalSourcesAvailable: additionalSources.length > 0,
@@ -106,6 +113,7 @@ async function readDashboardFolder(
   slug: string;
   repoPath: string;
   content: { title?: string | null; brief?: string | null };
+  mdx: PlanMdxFolder;
 }> {
   const folder = path.join(root, slug);
   const mdx = await readDashboardMdxFolder(folder);
@@ -114,6 +122,7 @@ async function readDashboardFolder(
     slug,
     repoPath: toRepoPath(repoRoot, folder),
     content,
+    mdx,
   };
 }
 
@@ -184,6 +193,38 @@ function dashboardPlanRoot(repoRoot: string): string {
   return path.join(repoRoot, "docs", "visual-companion", "plans");
 }
 
+async function listStarterArtifacts(
+  repoRoot: string,
+): Promise<LocalCompanionDashboardEntry[]> {
+  const starterRoot = path.join(repoRoot, "templates", "plan", "plans");
+  const entries = await fs
+    .readdir(starterRoot, { withFileTypes: true })
+    .catch(() => []);
+  const listed = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry) => {
+        try {
+          const local = await readDashboardFolder(repoRoot, starterRoot, entry.name);
+          const kind = resolveStarterKind(local.mdx);
+          return {
+            slug: local.slug,
+            title: local.content.title || local.slug,
+            kind,
+            routePath: companionRoutePath(kind, local.slug, local.repoPath),
+            repoPath: local.repoPath,
+            updatedAt: await readUpdatedAt(path.join(starterRoot, entry.name)),
+          };
+        } catch {
+          return null;
+        }
+      }),
+  );
+  return listed
+    .filter((entry): entry is LocalCompanionDashboardEntry => entry !== null)
+    .sort((left, right) => left.slug.localeCompare(right.slug));
+}
+
 async function listAdditionalSources(
   currentRepoRoot: string,
 ): Promise<LocalCompanionDashboardData["additionalSources"]> {
@@ -237,6 +278,22 @@ async function looksLikeRepoWithCompanion(candidateRoot: string): Promise<boolea
     pathExists(path.join(candidateRoot, "docs", "visual-companion")),
   ]);
   return checks.some(Boolean);
+}
+
+function resolveStarterKind(mdx: PlanMdxFolder): "plan" | "recap" {
+  const frontmatterMatch = mdx["plan.mdx"].match(
+    /^---[\s\S]*?^kind:\s*["']?(plan|recap)["']?\s*$/m,
+  );
+  if (frontmatterMatch) return frontmatterMatch[1] as "plan" | "recap";
+  try {
+    const state = mdx[".plan-state.json"]
+      ? (JSON.parse(mdx[".plan-state.json"]) as { kind?: unknown })
+      : null;
+    if (state?.kind === "plan" || state?.kind === "recap") return state.kind;
+  } catch {
+    // Optional companion state file.
+  }
+  return "plan";
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {

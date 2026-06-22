@@ -25,6 +25,14 @@ export function companionPlanQueryKey(
   ] as const;
 }
 
+export function companionFeedbackQueryParams(slug: string, path?: string | null) {
+  return path ? ({ slug, path } as const) : ({ slug } as const);
+}
+
+export function companionFeedbackQueryKey(slug: string, path?: string | null) {
+  return ["action", "get-companion-feedback", companionFeedbackQueryParams(slug, path)] as const;
+}
+
 export function useCompanionPlan(
   slug: string,
   kind: CompanionKind,
@@ -40,7 +48,7 @@ export function useCompanionPlan(
 export function useCompanionFeedback(slug: string, path?: string | null) {
   return useActionQuery(
     "get-companion-feedback",
-    path ? { slug, path } : { slug },
+    companionFeedbackQueryParams(slug, path),
     { enabled: Boolean(slug) },
   );
 }

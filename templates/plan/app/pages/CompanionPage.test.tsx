@@ -1,12 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 
 const hookMocks = vi.hoisted(() => ({
   useCompanionPlan: vi.fn(),
   useCompanionFeedback: vi.fn(),
+  invalidateQueries: vi.fn(),
+  mutateAsync: vi.fn(),
   useUpdateCompanionFeedback: vi.fn(() => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: hookMocks.mutateAsync,
     isPending: false,
   })),
 }));
@@ -15,9 +21,59 @@ vi.mock("@/hooks/use-companion-plan", () => ({
   useCompanionPlan: hookMocks.useCompanionPlan,
   useCompanionFeedback: hookMocks.useCompanionFeedback,
   useUpdateCompanionFeedback: hookMocks.useUpdateCompanionFeedback,
+  companionPlanQueryKey: (
+    slug: string,
+    kind: "plan" | "recap",
+    path?: string | null,
+  ) => [
+    "action",
+    "get-companion-plan",
+    path ? { slug, kind, path } : { slug, kind },
+  ],
+  companionFeedbackQueryKey: (slug: string, path?: string | null) => [
+    "action",
+    "get-companion-feedback",
+    path ? { slug, path } : { slug },
+  ],
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({
+    invalidateQueries: hookMocks.invalidateQueries,
+  }),
 }));
 
 import { CompanionPage } from "./CompanionPage";
+
+let container: HTMLElement;
+let root: Root;
+
+beforeEach(() => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  hookMocks.useUpdateCompanionFeedback.mockReturnValue({
+    mutateAsync: hookMocks.mutateAsync,
+    isPending: false,
+  });
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+  vi.clearAllMocks();
+});
+
+function renderInteractive(entry: string, slug = "settings-flow", kind: "plan" | "recap" = "plan") {
+  act(() =>
+    root.render(
+      <MemoryRouter initialEntries={[entry]}>
+        <CompanionPage slug={slug} kind={kind} />
+      </MemoryRouter>,
+    ),
+  );
+}
 
 function richTextBlock(id: string, markdown: string) {
   return {
@@ -58,6 +114,36 @@ describe("CompanionPage", () => {
       data: undefined,
       error: undefined,
       isError: false,
+      isLoading: false,
+      isFetching: false,
+    });
+    hookMocks.useCompanionFeedback.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isError: false,
+    });
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <CompanionPage slug="missing-flow" kind="plan" />
+      </MemoryRouter>,
+    );
+
+    expect(html).toContain("Plan not found");
+    expect(html).toContain(
+      "This plan could not be found in the current companion workspace.",
+    );
+    expect(html).not.toContain("Untitled plan");
+    expect(html).not.toContain("data-testid=\"companion-artifact-editor\"");
+  });
+
+  it("does not render an empty artifact when the query returns a malformed plan payload", () => {
+    hookMocks.useCompanionPlan.mockReturnValue({
+      data: {},
+      error: new Error(
+        "Action get-companion-plan failed: ENOENT: no such file or directory",
+      ),
+      isError: true,
       isLoading: false,
       isFetching: false,
     });
@@ -247,6 +333,107 @@ describe("CompanionPage", () => {
     expect(html).toContain("Comment on selected text");
     expect(html).toContain("data-testid=\"companion-artifact-editor\"");
     expect(html).not.toContain("data-testid=\"plans-page\"");
+  });
+
+  it("submits a selected-text comment and refreshes the plan and feedback queries", async () => {
+    hookMocks.useCompanionPlan.mockReturnValue({
+      data: {
+        repoPath: "templates/plan/plans/generic-workflow-demo",
+        plan: {
+          title: "Generic Service Rollout Plan",
+          content: {
+            blocks: [richTextBlock("generic-overview", "Review the rollout flow.")],
+          },
+        },
+        summary: {
+          openCommentCount: 0,
+        },
+        events: [],
+        companionManifest: {
+          targets: [{ id: "generic-overview" }],
+        },
+      },
+      isError: false,
+      isLoading: false,
+      isFetching: false,
+    });
+    hookMocks.useCompanionFeedback.mockReturnValue({
+      data: {
+        pending: [],
+        secondary: [],
+      },
+      isError: false,
+    });
+    hookMocks.mutateAsync.mockResolvedValue({
+      comments: [{ id: "fb_new" }],
+      summary: { commentCount: 1, openCommentCount: 1 },
+    });
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      toString: () => "rollout flow",
+    } as Selection);
+
+    renderInteractive(
+      "/companion/plans/settings-flow?path=templates/plan/plans/generic-workflow-demo",
+    );
+
+    const textarea = container.querySelector(
+      "#companion-comment-message",
+    ) as HTMLTextAreaElement;
+    const form = container.querySelector("form") as HTMLFormElement;
+    const setTextareaValue = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+
+    await act(async () => {
+      setTextareaValue?.call(textarea, "Check the rollout proof.");
+      textarea.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          data: "Check the rollout proof.",
+          inputType: "insertText",
+        }),
+      );
+    });
+
+    await act(async () => {
+      form.requestSubmit();
+    });
+
+    expect(hookMocks.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        slug: "settings-flow",
+        path: "templates/plan/plans/generic-workflow-demo",
+        comments: [
+          expect.objectContaining({
+            message: "Check the rollout proof.",
+            resolutionTarget: "agent",
+            anchor: expect.stringContaining("\"anchorKind\":\"text\""),
+          }),
+        ],
+      }),
+    );
+    expect(hookMocks.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [
+        "action",
+        "get-companion-plan",
+        {
+          slug: "settings-flow",
+          kind: "plan",
+          path: "templates/plan/plans/generic-workflow-demo",
+        },
+      ],
+    });
+    expect(hookMocks.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [
+        "action",
+        "get-companion-feedback",
+        {
+          slug: "settings-flow",
+          path: "templates/plan/plans/generic-workflow-demo",
+        },
+      ],
+    });
   });
 
   it("surfaces recap proof status in the dedicated companion workspace", () => {

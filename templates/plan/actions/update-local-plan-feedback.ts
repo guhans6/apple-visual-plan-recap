@@ -28,6 +28,7 @@ export default defineAction({
     comments: z.array(localPlanCommentSchema).min(1),
   }),
   http: { method: "POST" },
+  requiresAuth: false,
   readOnly: false,
   publicAgent: {
     expose: true,

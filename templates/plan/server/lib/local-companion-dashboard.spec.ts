@@ -49,6 +49,17 @@ describe("local-companion-dashboard", () => {
   });
 
   it("returns the current project companion roots even before artifacts exist", async () => {
+    await writeStarterArtifact(tmpDir, "generic-workflow-demo", {
+      title: "Generic Service Rollout Plan",
+      brief: "Generic demo brief",
+      kind: "plan",
+    });
+    await writeStarterArtifact(tmpDir, "apple-workflow-recap-demo", {
+      title: "Apple Settings Sync Recap",
+      brief: "Apple recap brief",
+      kind: "recap",
+    });
+
     const result = await listLocalCompanionDashboard();
 
     expect(result.companionRuntime).toBe(true);
@@ -64,6 +75,22 @@ describe("local-companion-dashboard", () => {
     );
     expect(result.currentProject.plans).toEqual([]);
     expect(result.currentProject.recaps).toEqual([]);
+    expect(result.currentProject.starterArtifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          slug: "generic-workflow-demo",
+          title: "Generic Service Rollout Plan",
+          kind: "plan",
+          repoPath: "templates/plan/plans/generic-workflow-demo",
+        }),
+        expect.objectContaining({
+          slug: "apple-workflow-recap-demo",
+          title: "Apple Settings Sync Recap",
+          kind: "recap",
+          repoPath: "templates/plan/plans/apple-workflow-recap-demo",
+        }),
+      ]),
+    );
     expect(result.additionalSources).toEqual([]);
     expect(result.additionalSourcesAvailable).toBe(false);
   });
@@ -108,6 +135,7 @@ describe("local-companion-dashboard", () => {
         repoPath: "docs/visual-companion/recaps/checkout-flow-recap",
       }),
     ]);
+    expect(result.currentProject.starterArtifacts).toEqual([]);
   });
 
   it("skips malformed local artifact folders without failing the dashboard", async () => {
@@ -226,6 +254,24 @@ async function writeStaticCompanionPlan(
     kind,
     slug,
   );
+  await fs.mkdir(folder, { recursive: true });
+  const frontmatter =
+    input.kind === "recap"
+      ? `---\ntitle: ${input.title}\nbrief: ${input.brief}\nkind: recap\n---\n`
+      : `---\ntitle: ${input.title}\nbrief: ${input.brief}\n---\n`;
+  await fs.writeFile(
+    path.join(folder, "plan.mdx"),
+    `${frontmatter}\n# ${input.title}\n`,
+    "utf-8",
+  );
+}
+
+async function writeStarterArtifact(
+  repoRoot: string,
+  slug: string,
+  input: { title: string; brief: string; kind: "plan" | "recap" },
+) {
+  const folder = path.join(repoRoot, "templates", "plan", "plans", slug);
   await fs.mkdir(folder, { recursive: true });
   const frontmatter =
     input.kind === "recap"

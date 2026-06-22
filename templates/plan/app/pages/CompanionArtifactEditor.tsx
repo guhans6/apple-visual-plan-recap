@@ -1,8 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlanContentRenderer } from "@/components/plan/PlanContentRenderer";
 import type { PlanContent } from "@shared/plan-content";
-import { useUpdateCompanionFeedback } from "@/hooks/use-companion-plan";
+import {
+  companionFeedbackQueryKey,
+  companionPlanQueryKey,
+  useUpdateCompanionFeedback,
+} from "@/hooks/use-companion-plan";
 import { CompanionWorkspaceShell } from "./CompanionWorkspaceShell";
 import { buildCompanionWorkspaceModel } from "./companion-shell";
 
@@ -88,6 +93,7 @@ export function CompanionArtifactEditor({
         </main>
         <CompanionReviewSidebar
           slug={slug}
+          kind={kind}
           items={feedbackItems}
           repoPath={(plan as { repoPath?: string | null } | null)?.repoPath}
         />
@@ -98,10 +104,12 @@ export function CompanionArtifactEditor({
 
 function CompanionReviewSidebar({
   slug,
+  kind,
   repoPath,
   items,
 }: {
   slug: string;
+  kind: "plan" | "recap";
   repoPath?: string | null;
   items: CompanionFeedbackItem[];
 }) {
@@ -109,6 +117,7 @@ function CompanionReviewSidebar({
   const [resolutionTarget, setResolutionTarget] = useState<"agent" | "human">(
     "agent",
   );
+  const queryClient = useQueryClient();
   const updateFeedback = useUpdateCompanionFeedback();
 
   async function submitComment(event: FormEvent<HTMLFormElement>) {
@@ -120,10 +129,17 @@ function CompanionReviewSidebar({
     const anchor = selectedText
       ? JSON.stringify({
           anchorKind: "text",
-          targetKind: "document",
-          quote: selectedText,
+          targetKind: "text",
+          textQuote: selectedText,
+          targetLabel: "Selected text",
+          resolutionTarget,
         })
-      : JSON.stringify({ anchorKind: "document", targetKind: "document" });
+      : JSON.stringify({
+          anchorKind: "point",
+          targetKind: "block",
+          targetLabel: "Document comment",
+          resolutionTarget,
+        });
     await updateFeedback.mutateAsync({
       slug,
       ...(repoPath ? { path: repoPath } : {}),
@@ -137,6 +153,14 @@ function CompanionReviewSidebar({
         },
       ],
     });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: companionPlanQueryKey(slug, kind, repoPath),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: companionFeedbackQueryKey(slug, repoPath),
+      }),
+    ]);
     setMessage("");
   }
 
