@@ -1,15 +1,42 @@
 {
-  "name": "apple-visual-plan-recap",
-  "version": "0.1.0",
+  "name": "visual-companion",
   "private": true,
   "type": "module",
-  "description": "Apple-focused local visual plan and recap skills with file-backed feedback sidecars.",
-  "license": "MIT",
+  "packageManager": "pnpm@10.29.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "description": "Private visual companion workspace derived from BuilderIO agent-native.",
   "scripts": {
-    "dev": "node scripts/serve-local-plan.mjs",
-    "test": "node --test test/*.test.mjs",
-    "check:skills": "node scripts/check-skills.mjs",
-    "check:sample": "node scripts/validate-sample-plan.mjs",
-    "check": "npm run check:skills && npm run check:sample && npm test"
+    "setup": "pnpm install",
+    "build": "pnpm --filter @agent-native/core --filter @agent-native/skills --filter plan run build",
+    "dev": "pnpm --filter plan dev",
+    "typecheck": "pnpm --filter @agent-native/core typecheck && pnpm --filter @agent-native/skills typecheck && pnpm --filter plan typecheck",
+    "test": "pnpm --filter @agent-native/skills test && pnpm --filter plan exec vitest --run server/lib/companion-manifest.spec.ts server/lib/companion-recap-coverage.spec.ts server/lib/companion-feedback-selectors.spec.ts server/lib/local-companion-dashboard.spec.ts actions/companion-actions.spec.ts server/plugins/auth.local-companion.spec.ts app/hooks/use-companion-plan.spec.ts app/hooks/use-plans.spec.ts app/pages/companion-shell.spec.ts app/pages/CompanionPage.test.tsx app/pages/CompanionHomePage.test.tsx app/pages/CompanionHomePage.interaction.spec.tsx actions/get-companion-plan.fixture.spec.ts actions/get-companion-generic.fixture.spec.ts actions/get-companion-recap.fixture.spec.ts actions/list-companion-dashboard.spec.ts && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "19.2.7",
+      "react-dom": "19.2.7",
+      "@types/react": "^19.2.14",
+      "@types/react-dom": "^19.2.3",
+      "rollup": ">=4.59.0",
+      "multer": ">=2.1.1",
+      "minimatch": ">=9.0.7",
+      "undici": ">=7.24.0",
+      "lodash": ">=4.18.0",
+      "@remix-run/router": ">=1.23.2",
+      "node-forge": ">=1.4.0",
+      "path-to-regexp": ">=8.4.0",
+      "picomatch": ">=4.0.4",
+      "fast-xml-parser": ">=5.5.6",
+      "glob": ">=10.5.0",
+      "@anthropic-ai/sdk": ">=0.90.0",
+      "hono": ">=4.12.4",
+      "kysely": "^0.28.9"
+    }
   }
 }
