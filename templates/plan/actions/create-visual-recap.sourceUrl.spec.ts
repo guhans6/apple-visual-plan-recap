@@ -50,6 +50,7 @@ let createVisualRecap: AnyAction;
 const OWNER = "owner@example.com";
 const ORG = "org-1";
 const PR_URL = "https://github.com/BuilderIO/agent-native/pull/1234";
+const RECAP_SOURCE_URL_SETUP_TIMEOUT_MS = 30_000;
 
 function asOwner(fn: () => Promise<any> | any) {
   return runWithRequestContext({ userEmail: OWNER, orgId: ORG }, fn);
@@ -144,7 +145,7 @@ beforeAll(async () => {
 
   createVisualRecap = (await import("./create-visual-recap.js"))
     .default as AnyAction;
-});
+}, RECAP_SOURCE_URL_SETUP_TIMEOUT_MS);
 
 afterAll(() => {
   client?.close();

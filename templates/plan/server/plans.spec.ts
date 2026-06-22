@@ -740,7 +740,10 @@ describe("Plans helpers", () => {
     expect(html).not.toContain(">Preview</button>");
     expect(html).not.toContain(">VS Code</button>");
     expect(html).not.toContain(">Cursor</button>");
-    expect(html).toContain("AnnotationPopover");
+    expect(html).toContain('aria-label="Choose editor"');
+    expect(html).toContain("data-agent-native-editor-menu");
+    expect(html).toContain("data-agent-native-open-selected-editor");
+    expect(html).not.toContain("AnnotationPopover");
   });
 
   it("keeps markdown implementation files free of noisy badges", () => {
