@@ -37,7 +37,7 @@ import {
 
 export default defineAction({
   description:
-    "Create or replace a plan from source-control friendly MDX files (repo check-in workflows). Use ONLY when working with exported MDX source files; for live plans prefer update-visual-plan with contentPatches. The MDX folder is the authoring/export surface; the runtime model remains normalized structured JSON. When replacing an existing plan, pass expectedUpdatedAt to guard against concurrent edits.",
+    "Create or replace a companion artifact from source-control friendly MDX files (repo check-in workflows). Use ONLY when working with local MDX source files; for small live companion edits prefer patch-visual-plan-source or update-local-plan-folder with contentPatches. The MDX folder is the authoring surface; the runtime model remains normalized structured JSON. When replacing an existing artifact, pass expectedUpdatedAt to guard against concurrent edits.",
   schema: z.object({
     planId: z
       .string()

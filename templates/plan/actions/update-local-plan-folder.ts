@@ -27,7 +27,7 @@ const localPlanKindSchema = z.enum(["plan", "recap"]);
 
 export default defineAction({
   description:
-    "Update a DB-free local Visual Companion MDX folder from PLAN_LOCAL_DIR or an optional repo-relative path. Applies the same structured contentPatches used by update-visual-plan, writes plan.mdx/canvas.mdx/prototype.mdx back to the same local folder, and never writes to the database.",
+    "Update a DB-free local Visual Companion MDX folder from PLAN_LOCAL_DIR or an optional repo-relative path. Applies structured contentPatches, writes plan.mdx/canvas.mdx/prototype.mdx back to the same local folder, and never writes to the database.",
   schema: z.object({
     slug: z
       .string()

@@ -13,7 +13,7 @@ import { sanitizeCustomHtml, serializePlanContent } from "./plan-content.js";
  * whose regex is NARROWER than the runtime `sanitizeCustomHtml` allowlist.
  *
  * These tests pin the parity gap: payloads the runtime sanitizer strips but the
- * patch-validation refine lets through. In the live `update-visual-plan` flow
+ * patch-validation refine lets through. In the live local-folder update flow
  * these are still cleaned because the action separately calls
  * `serializePlanContent` (which sanitizes). But `applyPlanContentPatches` on its
  * own — the surface these tests exercise — does NOT self-sanitize, contradicting
@@ -118,7 +118,7 @@ describe("runtime sanitizer own gaps (sanitizeCustomHtml)", () => {
 describe("END-TO-END: obfuscated payloads survive the only stored-content sanitization layer", () => {
   it("E2E GAP: a tab-obfuscated java\\tscript: href persists through serializePlanContent into the stored JSON", () => {
     // serializePlanContent is the sole sanitization layer for the value that
-    // update-visual-plan persists. The obfuscated scheme is not caught by the
+    // local-folder updates persist. The obfuscated scheme is not caught by the
     // schema refine NOR by sanitizeCustomHtml, so it lands in stored content.
     // SHOULD be neutralized; it is not. FAILING pins the bug.
     const stored = serializePlanContent({

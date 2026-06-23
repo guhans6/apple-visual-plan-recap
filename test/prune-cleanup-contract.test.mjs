@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
@@ -84,6 +84,7 @@ test("hosted generic plan actions are removed", async () => {
     "templates/plan/actions/resolve-plan-comment.ts",
     "templates/plan/actions/delete-plan-comment.ts",
     "templates/plan/actions/consume-plan-feedback.ts",
+    "templates/plan/actions/update-visual-plan.ts",
     "templates/plan/actions/list-plan-versions.ts",
     "templates/plan/actions/get-plan-version.ts",
     "templates/plan/actions/restore-plan-version.ts",
@@ -91,12 +92,34 @@ test("hosted generic plan actions are removed", async () => {
     "templates/plan/actions/export-visual-plan.ts",
     "templates/plan/actions/delete-visual-plan.spec.ts",
     "templates/plan/actions/get-plan-feedback.spec.ts",
+    "templates/plan/actions/update-visual-plan.spec.ts",
+    "templates/plan/actions/update-visual-plan-comment-flow.spec.ts",
     "templates/plan/actions/plan-comment-actions.spec.ts",
     "templates/plan/actions/plan-versions.spec.ts",
   ];
 
   for (const relativePath of obsoleteActionPaths) {
     await assertMissing(relativePath);
+  }
+});
+
+test("live operator docs do not route local companion edits through hosted actions", async () => {
+  const docs = [
+    "templates/plan/AGENTS.md",
+    "templates/plan/CLAUDE.md",
+    "templates/plan/.agents/skills/visual-plan/SKILL.md",
+    "templates/plan/.agents/skills/visual-recap/SKILL.md",
+  ];
+  const banned =
+    /get-plan-feedback|get-visual-plan|export-visual-plan|list-plan-versions|restore-plan-version|delete-visual-plan|reply-to-plan-comment|delete-plan-comment|update-visual-plan/;
+
+  for (const relativePath of docs) {
+    const source = await readFile(path.join(root, relativePath), "utf8");
+    assert.doesNotMatch(
+      source,
+      banned,
+      `${relativePath} still routes agents through hosted plan actions`,
+    );
   }
 });
 

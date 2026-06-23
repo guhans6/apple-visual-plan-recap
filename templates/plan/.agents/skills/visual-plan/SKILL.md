@@ -100,37 +100,21 @@ surface.
   Presenting the plan and requesting sign-off is the approval step — do not ask a
   separate "does this look good?" question.
 - **The document is the source of truth, not the chat.** When scope shifts,
-  update the plan with `update-visual-plan` rather than only changing course in
-  chat, and make the updated document stand alone. Do not describe the update as
-  a correction to an earlier draft inside the plan itself. Re-read the approved
-  plan before major steps.
+  update the local companion source with `update-local-plan-folder` or
+  `patch-visual-plan-source` rather than only changing course in chat, and make
+  the updated document stand alone. Do not describe the update as a correction
+  to an earlier draft inside the plan itself. Re-read the approved plan before
+  major steps.
 
 ## Create A Structured Agent-Native Plan — Never Inline
 
-The deliverable is ALWAYS a structured Agent-Native Plan, not a chat-only plan.
-The hosted Plan MCP connector (`plan` server, or legacy `agent-native-plans`) is
-the default collaboration and commenting surface; it is not a reason to reject
-the planning pattern as an external dependency or rented layer. Plans are
-portable source artifacts (`plan.mdx`, optional `canvas.mdx` /
-`prototype.mdx`, JSON, and HTML export), and ownership-sensitive workflows can
-use local-files mode or a self-hosted/custom Plan app URL without abandoning the
-skill's review discipline. Do not advise the user to skip `/visual-plan` because
-the default surface is hosted; choose the right Plan mode for the user's
-ownership, privacy, sharing, and branding needs.
-
-By default, create the plan via the Plan MCP connector. NEVER hand the plan over
-as inline chat content — no Markdown prose, ASCII sketch, table, or fenced
-wireframe. If the connector's tools are missing, do NOT fall back to inline
-output: the usual cause is a connector that did not finish connecting this
-session (it registers zero tools), not auth. Stop and give the user the exact
-restore step for their current client: in Codex/Codex Desktop run
-`npx -y @agent-native/core@latest reconnect https://plan.agent-native.com --client codex`
-and start a new Codex session; in Claude Code run `/mcp` and choose
-Authenticate/Reconnect (or run the same reconnect command with
-`--client claude-code` and restart Claude). Auth is stored per client
-config/session, so one client's reconnect does not make another running client
-load tools. Never reinstall from scratch just to fix auth. Publish once the tool
-is reachable. Local-files privacy mode (after Tool Guidance) is the exception.
+The deliverable is ALWAYS a structured local companion artifact, not a chat-only
+plan. Create or import the artifact with the companion creation tools, then hand
+the user the companion route or local artifact path that renders `plan.mdx`,
+optional `canvas.mdx`, optional `prototype.mdx`, assets, and feedback sidecars.
+NEVER hand the plan over as inline chat content — no Markdown prose, ASCII
+sketch, table, or fenced wireframe. If the creation tools are missing, stop and
+restore the local companion tool surface rather than improvising an inline plan.
 
 ## Core Workflow
 
@@ -179,14 +163,11 @@ is reachable. Local-files privacy mode (after Tool Guidance) is the exception.
    feedback queue, resolver intent, and any focused screenshots from browser
    handoff as the source of truth for exactly what changed and what each
    comment points at.
-6. Apply changes with `update-visual-plan`, preferring targeted `contentPatches`.
-   Treat the top-level `content` payload as a full replacement, not a merge; do
-   not send a partial `content` object to add a canvas or one block. If a full
-   replacement is unavoidable, first read the complete plan source/content, carry
-   forward every existing block and visual surface, and verify the source/export
-   afterward so the document body was not truncated. When the user wants
-   source-control friendly edits, use `patch-visual-plan-source` against the MDX
-   files instead of regenerating the plan.
+6. Apply changes with `update-local-plan-folder` or `patch-visual-plan-source`,
+   preferring targeted patches. Treat whole-artifact replacement as dangerous:
+   first read the complete source/content, carry forward every existing block
+   and visual surface, and verify the MDX afterward so the document body was not
+   truncated.
 7. Export only when the user explicitly wants a companion-side receipt or
    selected evidence bundle; otherwise keep the artifact in repo-local
    companion files.
@@ -209,10 +190,10 @@ outweighs the value. Keep the pass cheap and non-blocking:
   not anchored in real files or symbols; a menu of options where the plan should
   commit to one; obvious missing decisions ("what happens when X?", "why not Y?");
   and padding or single-step filler.
-- **Fix vs. ask.** Apply clear-cut fixes yourself with `update-visual-plan`
-  `contentPatches` — vague non-goals, unanchored claims, an obvious missing
-  decision. Route genuine judgment calls back to the user instead: add them to the
-  bottom `question-form` Open Questions block or batch them into the normal
+- **Fix vs. ask.** Apply clear-cut fixes yourself with local source patches —
+  vague non-goals, unanchored claims, an obvious missing decision. Route genuine
+  judgment calls back to the user instead: add them to the bottom
+  `question-form` Open Questions block or batch them into the normal
   ask-user-question flow. Do not silently decide them.
 - **Do not surprise the user mid-read.** On a large plan, apply the patches before
   the editor loads; otherwise note briefly that a self-review is running so the
@@ -320,8 +301,8 @@ directory before authoring a plan.
   into a prototype plan.
 - `create-visual-questions`: use only when the user explicitly asks for a visual
   intake questionnaire, not as `/visual-plan` preflight.
-- `update-visual-plan`: revise content, status, or comments with targeted
-  `contentPatches` (see Core Workflow step 6).
+- `update-local-plan-folder`: revise local companion artifact content with
+  targeted `contentPatches` (see Core Workflow step 6).
 - `read-visual-plan-source`: read the normalized plan as `plan.mdx`,
   optional `canvas.mdx`, optional `.plan-state.json`, and JSON.
 - `patch-visual-plan-source`: apply granular MDX AST patches by stable block,
@@ -342,14 +323,13 @@ skill — never hand-edit one stored plan. Turn feedback into better guidance.
 ## Local-Files Privacy Mode
 
 Use local-files privacy mode when the user explicitly asks for no DB writes,
-no hosted Plan database writes, no Plan MCP publish, fully local files, offline/private
-planning, repo-owned/source-controlled planning artifacts, or when
-`AGENT_NATIVE_PLANS_MODE=local-files` is set. Also use it when a user or repo
-policy says a plan must stay under their own brand, domain, source control, or
-infrastructure. In this mode the plan data must never be sent to the Plan MCP
-server or Plan app action surface. Schema-only block catalog lookup is allowed
-because it sends no plan content: use the MCP `get-plan-blocks` tool if it is
-already available, or run
+fully local files, offline/private planning, repo-owned/source-controlled
+planning artifacts, or when `AGENT_NATIVE_PLANS_MODE=local-files` is set. Also
+use it when a user or repo policy says a plan must stay under their own brand,
+domain, source control, or infrastructure. In this mode the plan data must stay
+in local companion files. Schema-only block catalog lookup is allowed because it
+sends no plan content: use the MCP `get-plan-blocks` tool if it is already
+available, or run
 `npx @agent-native/core@latest plan blocks --out plan-blocks.md` and read that
 file before authoring MDX.
 
@@ -374,31 +354,26 @@ The local-files contract is:
   before serving, then run
   `npx @agent-native/core@latest plan local serve --dir plans/<slug> --kind plan --open`.
   Report the returned local bridge URL from stdout or `plans/<slug>/.plan-url`.
-  Treat `.plan-url` as a local token file and do not commit it. The URL opens
-  the hosted Plan UI but reads from the localhost bridge on this machine, so it
-  is not shareable across machines. On macOS, `--open` prefers Chromium browsers;
-  if Safari opens, switch to Chrome/Chromium because Safari can block the hosted
-  HTTPS page from fetching the HTTP localhost bridge. If the Plan app itself is
-  running locally with the same `PLAN_LOCAL_DIR`, the `/local-plans/<slug>` route
-  is also valid.
+  Treat `.plan-url` as a local token file and do not commit it. The URL reads
+  from the localhost bridge on this machine, so it is not shareable across
+  machines. On macOS, `--open` prefers Chromium browsers. If the Plan app itself
+  is running locally with the same `PLAN_LOCAL_DIR`, the companion route is also
+  valid.
 - For headless verification, run
   `npx @agent-native/core@latest plan local verify --dir plans/<slug> --kind plan`.
   It starts the bridge, checks the private-network preflight and JSON payload,
   prints diagnostics, and exits. If the browser hangs on "Loading plan", fetch
   the `bridgeUrl` from the verify/serve JSON to read the concrete validation
   error.
-- Do **not** call `create-visual-plan`, `create-ui-plan`,
-  `create-prototype-plan`, `create-plan-design`, `update-visual-plan`,
-  `patch-visual-plan-source`, `get-companion-feedback`,
-  `export-companion-selection`, or any hosted Plan tool for that plan except the
-  schema-only block catalog lookup above.
-- Treat feedback as file or chat feedback: update the MDX files directly, rerun
-  the local bridge command, and summarize the new local bridge URL. Hosted
-  comments, sharing, history, and publish/export receipts are unavailable until
-  the user explicitly opts into publishing.
+- Do **not** call remote publish/share/history tools for local-only plans. Keep
+  edits in the local companion folder and use only companion-owned read,
+  feedback, import/export, and source-patch actions.
+- Treat feedback as local companion feedback: update the MDX files directly or
+  through companion-owned actions, rerun the local bridge command when needed,
+  and summarize the refreshed companion URL or path.
 
-Local-files mode prevents plan content from going to the Agent-Native Plan
-database. It does not by itself make the coding agent's language model local;
+Local-files mode prevents plan content from leaving the local companion folder.
+It does not by itself make the coding agent's language model local;
 for that stronger privacy boundary, the host agent/model must also be local or
 otherwise approved by the user.
 
@@ -428,7 +403,7 @@ acting on any comment.
   treat `human` as context only. `@mentions` are people to notify, never a
   routing signal.
 - **Two-axis state.** Mark every ingested comment as consumed
-  (`consumedCommentIds` on `update-visual-plan`). Set `status=resolved` only on
+  with `consume-companion-feedback`. Set `status=resolved` only on
   agent-targeted comments you actually addressed; leave human-targeted comments
   open.
 

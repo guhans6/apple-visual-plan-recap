@@ -24,7 +24,7 @@ import {
 
 export default defineAction({
   description:
-    "Patch the MDX source for a Visual Companion artifact by stable semantic IDs, then normalize it back into runtime JSON. Use ONLY when working with exported MDX source files (repo check-in workflows); for live artifacts prefer update-visual-plan with contentPatches. Suitable for tiny source-control friendly diffs: one markdown block, one artboard, one annotation, or one wireframe node.",
+    "Patch the MDX source for a Visual Companion artifact by stable semantic IDs, then normalize it back into runtime JSON. Use when working with local MDX source files or tiny source-control friendly diffs: one markdown block, one artboard, one annotation, or one wireframe node. For structured local folder edits, use update-local-plan-folder with contentPatches.",
   schema: z.object({
     planId: z.string().describe("Plan ID"),
     patches: planMdxSourcePatchesSchema.describe(

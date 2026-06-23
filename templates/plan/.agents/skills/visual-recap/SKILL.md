@@ -19,19 +19,19 @@ schema, API, file, and architecture changes become the same `data-model`,
 now they summarize work that exists. A reviewer scans the shape of the change
 before spending attention on the literal lines.
 
-## Local-Files Privacy Mode Exception
+## Local Companion Mode
 
 Use local-files privacy mode when the user explicitly asks for no DB writes,
-no hosted Plan database writes, no Plan MCP publish, fully local files, offline/private
-recaps, or when `AGENT_NATIVE_PLANS_MODE=local-files` is set. This is the only
-exception to the hosted publish rule below.
+fully local files, offline/private recaps, or when
+`AGENT_NATIVE_PLANS_MODE=local-files` is set. This is the default companion
+direction for repo-owned recap artifacts.
 
 In local-files mode:
 
 - Read the diff/stat/source context from local files and shell commands only.
   The existing `npx @agent-native/core@latest recap collect-diff`, `scan`, and
   `build-prompt --local-files` helpers are safe to use because they operate on
-  local files and do not write to the Plan database.
+  local files.
 - Fetch/read the block catalog before writing structured MDX. Use
   `npx @agent-native/core@latest plan blocks --out plan-blocks.md` when the Plan
   MCP connector is not registered; it calls the public no-auth
@@ -53,63 +53,38 @@ In local-files mode:
   before serving, then run
   `npx @agent-native/core@latest plan local serve --dir plans/<slug> --kind recap --open`.
   Report the returned local bridge URL from stdout or `plans/<slug>/.plan-url`.
-  Treat `.plan-url` as a local token file and do not commit it. The URL opens
-  the hosted Plan UI but reads from the localhost bridge on this machine, so it
-  is not shareable across machines. On macOS, `--open` prefers Chromium browsers;
-  if Safari opens, switch to Chrome/Chromium because Safari can block the hosted
-  HTTPS page from fetching the HTTP localhost bridge. If the Plan app itself is
-  running locally with the same `PLAN_LOCAL_DIR`, the `/local-plans/<slug>` route
-  is also valid.
+  Treat `.plan-url` as a local token file and do not commit it. The URL reads
+  from the localhost bridge on this machine, so it is not shareable across
+  machines. On macOS, `--open` prefers Chromium browsers. If the Plan app itself
+  is running locally with the same `PLAN_LOCAL_DIR`, the companion route is also
+  valid.
 - For headless verification, run
   `npx @agent-native/core@latest plan local verify --dir plans/<slug> --kind recap`.
   It starts the bridge, checks the private-network preflight and JSON payload,
   prints diagnostics, and exits. If the browser hangs on "Loading plan", fetch
   the `bridgeUrl` from the verify/serve JSON to read the concrete validation
   error.
-- Do **not** call `create-visual-recap`, `create-visual-plan`,
-  `update-visual-plan`,
-  `patch-visual-plan-source`, `get-companion-feedback`,
-  `set-resource-visibility`, or any hosted Plan tool for that recap except the
-  schema-only block catalog lookup above.
-- Treat review feedback as file or chat feedback: update the MDX files directly,
-  rerun the local bridge command, and summarize the new local bridge URL.
-  Hosted comments, sharing, screenshots, usage attachment, and PR sticky comment
-  publishing are unavailable until the user explicitly opts into publishing.
+- Do **not** call remote publish/share/history tools for local-only recaps.
+  Keep edits in the local companion folder and use only companion-owned read,
+  feedback, import/export, and source-patch actions.
+- Treat review feedback as local companion feedback: update the MDX files
+  directly or through companion-owned actions, rerun the local bridge command
+  when needed, and summarize the refreshed companion URL or path.
 
-Local-files mode prevents recap content from going to the Agent-Native Plan
-database. It does not by itself make the coding agent's language model local;
+Local-files mode prevents recap content from leaving the local companion folder.
+It does not by itself make the coding agent's language model local;
 for that stronger privacy boundary, the host agent/model must also be local or
 otherwise approved by the user.
 
-## Always Publish As An Agent-Native Plan — Never Inline
+## Always Create A Companion Recap — Never Inline
 
-The deliverable is ALWAYS a published Agent-Native Plan, created with the
-`create-visual-recap` tool on the Plan MCP connector. The connector is usually
-exposed as the `plan` server, but older installed agents may expose the same
-hosted connector as `agent-native-plans`; both names are valid. NEVER hand the
-recap to the user as inline chat content — not Markdown prose, not an ASCII
-sketch, not a table, not a fenced "wireframe", not a "here's the recap" summary.
-A recap's entire value is the hosted, interactive, annotatable plan; an inline
-summary is not a recap, it is the thing a recap replaces. The only supported
-output is to publish the plan and return its absolute URL.
-
-Except for the explicit local-files privacy mode above, if neither the `plan`
-nor legacy `agent-native-plans` Plan MCP tools are available, do NOT improvise an
-inline recap as a fallback. Do not report the connector as disconnected just
-because it is named `agent-native-plans` instead of `plan`. The usual cause is a
-connector that did not finish connecting this session (it registers zero tools),
-NOT necessarily an auth problem — so do not assume the user must authenticate.
-Stop and tell the user how to restore it for their current client: in
-Codex/Codex Desktop, run
-`npx -y @agent-native/core@latest reconnect https://plan.agent-native.com --client codex`
-and start a new Codex session; in Claude Code, run `/mcp` and choose
-Authenticate/Reconnect, or run the reconnect command with `--client claude-code`
-and restart Claude. Auth is stored per client config/session; `--client all`
-refreshes every local client config that already has the Plan entry, but each
-running client still has to reload its MCP tools. Reconnect re-authenticates
-WITHOUT reinstalling and finds the entry by URL regardless of connector name.
-Never reinstall from scratch just to fix auth. Then publish once the tool is
-reachable. Falling back to inline content is a defect, not a degraded mode.
+The deliverable is ALWAYS a structured local companion recap, created with
+`create-visual-recap` or authored as a local MDX recap folder and opened through
+the companion route. NEVER hand the recap to the user as inline chat content —
+not Markdown prose, not an ASCII sketch, not a table, not a fenced "wireframe",
+not a "here's the recap" summary. A recap's value is the interactive,
+annotatable artifact; an inline summary is not a recap, it is the thing a recap
+replaces.
 
 ## When To Use
 
@@ -286,52 +261,15 @@ a headless CI agent), state that in the recap handoff instead.
 In local-files privacy mode, run `plan local check` first, then report the local
 bridge URL from
 `npx @agent-native/core@latest plan local serve --dir plans/<slug> --kind recap --open`
-or from `plans/<slug>/.plan-url`. It opens the hosted Plan UI but reads from the
-localhost bridge on this machine, so it is not shareable across machines. If the
-Plan app itself is running locally with the same `PLAN_LOCAL_DIR`, the
-`/local-plans/<slug>` route is also valid. Do not invent a hosted database URL
-and do not publish just to get an absolute Plan link.
+or from `plans/<slug>/.plan-url`. The URL reads from the localhost bridge on
+this machine, so it is not shareable across machines. If the companion app
+itself is running locally with the same `PLAN_LOCAL_DIR`, report the matching
+`/companion/recaps/<slug>?path=...` route.
 
-After creating the recap, link the reviewer to the rendered plan with an
-**absolute URL on the origin whose database actually holds the plan**. That
-origin is the Plan MCP server you just created the recap through — NOT whatever
-dev server you happen to know is running. The create tool returns the correct
-link; report THAT. Never make the primary link a local `plan.mdx` file, a local
-mirror folder, or a relative path such as `/plans/<id>`.
-
-When the recap is posted to a PR for a private repo, the plan link is not a
-public URL. Make the PR comment/handoff copy explicit: reviewers may need to
-sign in to Agent-Native Plans with an account that has access to the owning
-organization before the link loads. Use wording like: "Private repo recap:
-sign in with access to this org if the plan does not open." Do not imply the
-link is broken or public when access is gated by repo/org visibility.
-
-A recap lives only in the database of the MCP that created it. A separately
-running local dev server (e.g. `http://localhost:8081`) has its OWN database and
-will NOT contain a recap created through the hosted MCP, so a hand-built
-`localhost` link returns "Plan not found". This is the most common recap
-mistake — do not guess an origin you have not confirmed shares the MCP's data.
-
-Resolve the URL in this order:
-
-1. Use the absolute URL the create tool RETURNS — `openLink.webUrl`, else the
-   `visualUrl` in the returned `plan.mdx` frontmatter, else `url`/`path`
-   resolved against the MCP server's own origin (for the hosted MCP that is
-   `https://plan.agent-native.com`). This always points at the database that has
-   the plan.
-2. Use a `localhost`/dev origin ONLY when the recap was created through a Plan
-   MCP bound to that same origin — i.e. that MCP's url is
-   `http://localhost:<port>/_agent-native/mcp`. Creating through the hosted MCP
-   and linking to localhost is the exact mismatch that 404s.
-3. If only a plan id is available, build the MCP origin's absolute URL
-   (hosted: `https://plan.agent-native.com/plans/<id>`) and say it was inferred.
-
-If the user wants to review on localhost but the recap was created through the
-hosted MCP, say so plainly: the local dev server cannot see it. To view a recap
-on localhost (e.g. to exercise un-deployed local renderer changes), they must
-connect a LOCAL Plan MCP (`http://localhost:<port>/_agent-native/mcp`) and
-re-create the recap through it so it lands in the local database; offer to do
-that rather than handing over a localhost URL that will not resolve.
+After creating the recap, link the reviewer to the rendered companion artifact
+and include the repo-local folder path. Never make the primary handoff just a
+raw `plan.mdx` file, and never invent a database URL to make the recap look
+published.
 
 When running in Codex and the Browser/in-app side browser tools are available,
 open the returned absolute recap URL there automatically after creation. Still

@@ -166,33 +166,24 @@ sync-guarded skills (not just one stored plan) so the improvement sticks.
   `DesignBoard`, `Section`, `Artboard`, `Screen`, `Annotation`, `Connector`, and
   the wireframe kit primitives from `shared/plan-content.ts`.
 
-## Browser Editing
+## Companion Review And Edits
 
-- Prose in `rich-text` blocks is edited inline with the shared
-  `RichMarkdownEditor`, autosaved through `update-visual-plan` with
-  `contentPatches: [{ op: "update-rich-text", blockId, markdown }]`.
-- Local companion folders opened from `PLAN_LOCAL_DIR` or a
-  repo-relative `?path=...` companion route use the same Notion-style browser editor, but
-  autosave through `update-local-plan-folder` so changes are written to
-  `plan.mdx`, `canvas.mdx`, and `prototype.mdx` without touching the Plan
-  database.
-- Review annotation mode makes prose temporarily read-only so clicks can pin
-  feedback. Leaving review mode restores inline prose editing.
-- Canvas, artboard, wireframe, diagram, and custom visual edits remain driven by
-  comments, source patches, or structured content patches rather than direct
-  rich-text editing.
-- Design-mode artboards can be element-edited with `update-visual-plan`
-  `contentPatches: [{ op: "update-design-element-style", frameId, blockId,
-elementId, styles }]`. Elements must have `data-design-id` or
-  `data-plan-design-id`; use `patch-wireframe-html` / `patch-prototype-html` for
-  structural or text changes.
-- Plan comments include reviewer identity, @mentions, resolver intent
-  (`agent` or `human`), exact anchors, and Figma-style threads. When adding
-  human feedback through `update-visual-plan`, preserve `authorEmail` and
-  `authorName` when known; pass `parentCommentId` to reply inline to an
-  existing comment thread. Text feedback should anchor to the nearest prose
-  block, and visual/canvas feedback should include target coordinates plus
-  concise surrounding context.
+- The default companion browser surface is review/read/comment first. Do not
+  assume inline rich-text or document editing is mounted in the browser.
+- Local companion folders opened from `PLAN_LOCAL_DIR` or a repo-relative
+  `?path=...` route should be changed through `update-local-plan-folder` or
+  `patch-visual-plan-source`, so writes go back to `plan.mdx`, `canvas.mdx`, and
+  `prototype.mdx` without touching hosted storage.
+- Review annotation mode pins feedback to prose, canvas, artboard, wireframe,
+  diagram, and prototype targets. Treat comments as the primary review channel;
+  use source patches or structured content patches for actual artifact edits.
+- Design and prototype changes must keep stable semantic IDs (`data-design-id`,
+  `data-plan-design-id`, block ids, frame ids, node ids) so feedback can map
+  back to source. Use targeted source patches for structural or text changes.
+- Companion comments include reviewer identity, resolver intent (`agent` or
+  `human`), exact anchors, and thread history. Add or update local review
+  feedback through companion-owned actions, preserving author fields and parent
+  comment ids when replying.
 - `get-companion-feedback` returns the current local companion feedback queue.
   Read it before changing code or updating artifact files so the agent acts on
   the pending local review thread instead of stale assumptions.
