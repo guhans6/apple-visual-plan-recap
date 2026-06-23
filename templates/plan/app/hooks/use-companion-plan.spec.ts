@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   useActionQuery: vi.fn(),
 }));
 
-vi.mock("@agent-native/core/client", () => ({
+vi.mock("@/lib/local-shell", () => ({
   useActionMutation: mocks.useActionMutation,
   useActionQuery: mocks.useActionQuery,
 }));

@@ -1,4 +1,3 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   BlockRegistry,
   registerBlocks,
@@ -11,12 +10,7 @@ import {
   type OpenApiSpecData,
   type BlockRenderContext,
   type NestedBlock,
-  type BlockAiFieldActionProps,
 } from "@agent-native/core/blocks";
-import {
-  sendToAgentChat,
-  type RichMarkdownCollabUser,
-} from "@agent-native/core/client";
 import type { PlanBlock } from "@shared/plan-content";
 import { PlanBlockView } from "./DocumentArea";
 import { PlanMarkdownReader } from "./PlanMarkdownReader";
@@ -27,11 +21,11 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const LazyPlanMarkdownEditor = lazy(() =>
-  import("./PlanMarkdownEditor").then((mod) => ({
-    default: mod.PlanMarkdownEditor,
-  })),
-);
+type RichMarkdownCollabUser = {
+  name: string;
+  color: string;
+  email?: string;
+};
 
 type PlanBlockRenderContextExtras = {
   onQuestionFormSubmit?: (summary: string) => void;
@@ -169,31 +163,10 @@ export function createPlanBlockRenderContext(options: {
     renderMarkdown: (markdown, options) => (
       <PlanMarkdownReader markdown={markdown} className={options?.className} />
     ),
-    renderMarkdownEditor: ({
-      value,
-      onChange,
-      editable,
-      blockId,
-      className,
-      ariaLabel,
-    }) => (
-      <Suspense
-        fallback={<PlanMarkdownReader markdown={value} className={className} />}
-      >
-        <LazyPlanMarkdownEditor
-          markdown={value}
-          editable={editable}
-          className={className}
-          ariaLabel={ariaLabel}
-          contentUpdatedAt={options.contentUpdatedAt}
-          planId={options.planId}
-          blockId={blockId}
-          user={options.collabUser}
-          onSave={onChange}
-        />
-      </Suspense>
+    renderMarkdownEditor: ({ value, className }) => (
+      <PlanMarkdownReader markdown={value} className={className} />
     ),
-    renderAiFieldAction: (props) => <PlanAiFieldAction {...props} />,
+    renderAiFieldAction: undefined,
     // Recursively render a nested child block through the plan dispatcher. The
     // child's `onChange` (when provided by an editable container) bubbles the
     // updated child back up — mirroring the legacy `TabsBlock` onChange path so
@@ -228,11 +201,6 @@ export function createPlanBlockRenderContext(options: {
       open,
       onOpenChange,
       variant,
-      blockId,
-      blockType,
-      blockTitle,
-      blockSummary,
-      blockData,
     }) => {
       const compactMenu = variant === "menu";
 
@@ -243,11 +211,6 @@ export function createPlanBlockRenderContext(options: {
             align="end"
             collisionPadding={16}
             sideOffset={6}
-            onInteractOutside={(event) => {
-              if (isAiEditPopoverTarget(event.target)) {
-                event.preventDefault();
-              }
-            }}
             data-plan-interactive
             className={cn(
               "relative flex max-h-[calc(100vh-32px)] overflow-y-auto",
@@ -264,17 +227,6 @@ export function createPlanBlockRenderContext(options: {
                   <div className="min-w-0 truncate pt-0.5 text-sm font-semibold text-foreground">
                     {title}
                   </div>
-                  {blockId && blockType ? (
-                    <PlanAiBlockAction
-                      label={title}
-                      blockId={blockId}
-                      blockType={blockType}
-                      blockTitle={blockTitle}
-                      blockSummary={blockSummary}
-                      blockData={blockData}
-                      planId={options.planId}
-                    />
-                  ) : null}
                 </div>
                 {children}
               </>
@@ -285,234 +237,4 @@ export function createPlanBlockRenderContext(options: {
     },
   };
   return ctx;
-}
-
-export function PlanAiBlockAction({
-  label,
-  blockId,
-  blockType,
-  blockTitle,
-  blockSummary,
-  blockData,
-  planId,
-}: {
-  label: string;
-  blockId: string;
-  blockType: string;
-  blockTitle?: string;
-  blockSummary?: string;
-  blockData: unknown;
-  planId?: string | null;
-}) {
-  const submitPrompt = (prompt: string) => {
-    const trimmed = prompt.trim();
-    if (!trimmed) return;
-    sendToAgentChat({
-      type: "content",
-      submit: true,
-      openSidebar: true,
-      message: trimmed,
-      context: [
-        "The user is asking the agent to edit a focused block from a visual plan block editor popover.",
-        planId ? `Plan id: ${planId}` : null,
-        `Plan block id: ${blockId}`,
-        `Plan block type: ${blockType}`,
-        blockTitle ? `Block title: ${blockTitle}` : null,
-        blockSummary ? `Block summary: ${blockSummary}` : null,
-        "",
-        "Current block data:",
-        fencedValue("Block data", stringifyBlockData(blockData), "json"),
-        "",
-        "Patch only this block unless the user's instruction explicitly asks for a broader document change. Preserve existing block fields that the user did not ask to change.",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
-  };
-
-  return (
-    <InlinePromptField
-      placeholder="Describe a change…"
-      ariaLabel={`Describe a change to ${label.toLowerCase()}`}
-      onSubmit={submitPrompt}
-    />
-  );
-}
-
-function PlanAiFieldAction({
-  blockId,
-  blockType,
-  blockTitle,
-  blockSummary,
-  fieldLabel,
-  fieldValue,
-  disabled,
-  instructions,
-  companionFields = [],
-}: BlockAiFieldActionProps) {
-  const submitPrompt = (prompt: string) => {
-    const trimmed = prompt.trim();
-    if (!trimmed) return;
-    sendToAgentChat({
-      type: "content",
-      submit: true,
-      openSidebar: true,
-      message: trimmed,
-      context: [
-        "The user is asking the agent to edit a focused field from a visual plan block editor.",
-        `Plan block id: ${blockId}`,
-        `Plan block type: ${blockType}`,
-        blockTitle ? `Block title: ${blockTitle}` : null,
-        blockSummary ? `Block summary: ${blockSummary}` : null,
-        `Focused field: ${fieldLabel}`,
-        "",
-        "Focused field value:",
-        fencedValue(fieldLabel, fieldValue, languageForField(fieldLabel)),
-        "",
-        companionFields.length ? "Current companion fields:" : null,
-        ...companionFields.flatMap((field) => [
-          fencedValue(
-            field.label,
-            field.value || "(empty)",
-            field.language ?? languageForField(field.label),
-          ),
-        ]),
-        "",
-        instructions,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
-  };
-
-  return (
-    <InlinePromptField
-      size="sm"
-      subtle
-      placeholder="Describe a change…"
-      ariaLabel={`Describe a change to the ${fieldLabel.toLowerCase()}`}
-      onSubmit={submitPrompt}
-      disabled={disabled}
-      fieldActionLabel={fieldLabel}
-    />
-  );
-}
-
-function InlinePromptField({
-  placeholder,
-  ariaLabel,
-  onSubmit,
-  disabled,
-  size = "md",
-  subtle,
-  fieldActionLabel,
-}: {
-  placeholder: string;
-  ariaLabel?: string;
-  onSubmit: (text: string) => void;
-  disabled?: boolean;
-  size?: "sm" | "md";
-  subtle?: boolean;
-  fieldActionLabel?: string;
-}) {
-  const [value, setValue] = useState("");
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  // Grow the field to fit wrapped lines as the user types (capped, then scrolls).
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
-  }, [value]);
-
-  const submit = () => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    onSubmit(trimmed);
-    setValue("");
-    if (ref.current) ref.current.style.height = "";
-    ref.current?.blur();
-  };
-
-  const sm = size === "sm";
-
-  return (
-    <div
-      data-plan-interactive
-      className={cn(
-        // Static width (about halfway between the resting and expanded sizes),
-        // no width animation: the field is autofocused when the popover opens,
-        // so an on-focus width transition would fire immediately and look janky.
-        "relative inline-flex shrink-0 items-start overflow-hidden rounded-2xl border border-input bg-background shadow-sm transition-[border-color,opacity] focus-within:border-ring",
-        sm ? "w-[225px]" : "w-[290px]",
-        subtle &&
-          "opacity-80 focus-within:opacity-100 group-hover/field:opacity-100 group-focus-within/field:opacity-100",
-        disabled && "pointer-events-none opacity-40",
-      )}
-    >
-      <textarea
-        ref={ref}
-        rows={1}
-        value={value}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        data-ai-field-action={fieldActionLabel}
-        placeholder={placeholder}
-        spellCheck={false}
-        onChange={(event) => setValue(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            submit();
-          } else if (event.key === "Escape") {
-            event.preventDefault();
-            event.currentTarget.blur();
-          }
-        }}
-        className={cn(
-          "max-h-[220px] w-full cursor-text resize-none bg-transparent leading-snug text-foreground outline-none placeholder:text-muted-foreground",
-          sm ? "py-1.5 pl-2.5 pr-7 text-[11px]" : "py-1.5 pl-3 pr-8 text-xs",
-        )}
-      />
-      <kbd
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute right-1.5 top-1.5 rounded border border-border bg-background/80 font-sans leading-tight text-muted-foreground opacity-60",
-          sm ? "px-1 text-[9px]" : "px-1 text-[10px]",
-        )}
-      >
-        ⏎
-      </kbd>
-    </div>
-  );
-}
-
-function isAiEditPopoverTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    Boolean(target.closest("[data-ai-edit-popover]"))
-  );
-}
-
-function languageForField(field: string): string {
-  const normalized = field.toLowerCase();
-  if (normalized.includes("css")) return "css";
-  if (normalized.includes("json")) return "json";
-  if (normalized.includes("html") || normalized.includes("svg")) return "html";
-  return "text";
-}
-
-function fencedValue(label: string, value: string, language: string): string {
-  return [`${label}:`, `\`\`\`${language}`, value || "(empty)", "```"].join(
-    "\n",
-  );
-}
-
-function stringifyBlockData(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2) ?? "null";
-  } catch {
-    return String(value);
-  }
 }

@@ -1618,7 +1618,10 @@ export function defineConfig(options: ClientConfigOptions = {}): UserConfig {
     ].filter(Boolean),
     optimizeDeps: {
       include: [
-        ...getDefaultOptimizeDeps(cwd),
+        ...getDefaultOptimizeDeps(cwd).filter(
+          (specifier) =>
+            !(options.optimizeDeps?.exclude ?? []).includes(specifier),
+        ),
         ...(hasDep("@agent-native/pinpoint", cwd)
           ? ["@agent-native/pinpoint/react"]
           : []),

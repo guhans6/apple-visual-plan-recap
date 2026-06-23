@@ -11,6 +11,14 @@ const GENERATED_RUNTIME_WATCH_IGNORES = [
 
 export default defineConfig({
   plugins: [generatedRuntimeWatchIgnorePlugin(), reactRouter()],
+  optimizeDeps: {
+    exclude: [
+      "@libsql/client",
+      "drizzle-orm",
+      "drizzle-orm/pg-core",
+      "drizzle-orm/sqlite-core",
+    ],
+  },
   // Browser-only renderers run in useEffect — keep them out of the CF Pages
   // Functions bundle (25 MiB limit) and away from SSR DOM/canvas shims.
   ssrStubs: [

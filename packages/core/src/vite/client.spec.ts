@@ -310,6 +310,23 @@ describe("route warmup config", () => {
   });
 });
 
+describe("Vite optimize dependency config", () => {
+  it("lets apps exclude framework default optimized deps", () => {
+    const config = defineConfig({
+      optimizeDeps: {
+        exclude: ["@libsql/client", "drizzle-orm"],
+      },
+    });
+    const include = config.optimizeDeps?.include ?? [];
+    const exclude = config.optimizeDeps?.exclude ?? [];
+
+    expect(include).not.toContain("@libsql/client");
+    expect(include).not.toContain("drizzle-orm");
+    expect(exclude).toContain("@libsql/client");
+    expect(exclude).toContain("drizzle-orm");
+  });
+});
+
 describe("Vite MCP embed headers", () => {
   it("adds COEP-compatible headers to embed-token page loads in dev", () => {
     const plugin = findPlugin("agent-native-embed-dev-frame-headers");

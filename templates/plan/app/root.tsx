@@ -1,31 +1,16 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import { useCallback, useState } from "react";
-import { useNavigationState } from "@/hooks/use-navigation-state";
-import { useQueryClient } from "@tanstack/react-query";
-import { useDbSync } from "@agent-native/core";
+import { useState } from "react";
 import {
   AppProviders,
-  CommandMenu,
   appPath,
   createAgentNativeQueryClient,
   getThemeInitScript,
-  useCommandMenuShortcut,
-} from "@agent-native/core/client";
-import { IconSun, IconMoon } from "@tabler/icons-react";
-import { useTheme } from "next-themes";
+} from "@/lib/local-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { Layout as AppLayout } from "@/components/layout/Layout";
-import { TAB_ID } from "@/lib/tab-id";
 import { APP_TITLE } from "@/lib/app-config";
 import type { LinksFunction } from "react-router";
 import stylesheet from "./global.css?url";
-import { configureTracking } from "@agent-native/core/client";
-configureTracking({
-  getDefaultProps: (_name, properties) => ({
-    ...properties,
-    app: "plan",
-  }),
-});
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -68,41 +53,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DbSyncSetup() {
-  const qc = useQueryClient();
-  useNavigationState();
-  useDbSync({
-    queryClient: qc,
-    ignoreSource: TAB_ID,
-  });
-  return null;
-}
-
 function AppContent() {
-  const [cmdkOpen, setCmdkOpen] = useState(false);
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  useCommandMenuShortcut(useCallback(() => setCmdkOpen(true), []));
   return (
-    <>
-      <CommandMenu open={cmdkOpen} onOpenChange={setCmdkOpen}>
-        <CommandMenu.Group heading="Actions">
-          <CommandMenu.Item onSelect={() => {}}>Search plans</CommandMenu.Item>
-        </CommandMenu.Group>
-        <CommandMenu.Group heading="Appearance">
-          <CommandMenu.Item
-            onSelect={() => setTheme(isDark ? "light" : "dark")}
-            keywords={["theme", "dark", "light", "mode"]}
-          >
-            {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
-            Toggle {isDark ? "light" : "dark"} mode
-          </CommandMenu.Item>
-        </CommandMenu.Group>
-      </CommandMenu>
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
-    </>
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
   );
 }
 
@@ -116,10 +71,9 @@ export default function Root() {
       queryClient={queryClient}
       toaster={<Toaster richColors position="bottom-left" />}
     >
-      <DbSyncSetup />
       <AppContent />
     </AppProviders>
   );
 }
 
-export { ErrorBoundary } from "@agent-native/core/client";
+export { ErrorBoundary } from "@/lib/local-shell";

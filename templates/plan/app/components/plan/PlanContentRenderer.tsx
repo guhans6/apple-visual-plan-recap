@@ -1,10 +1,8 @@
 import {
   useEffect,
-  lazy,
   useMemo,
   useRef,
   useState,
-  Suspense,
   type ClipboardEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -12,7 +10,6 @@ import {
 } from "react";
 import { IconBrandGithub } from "@tabler/icons-react";
 import type { PlanFileTreeBlock } from "@shared/plan-content";
-import type { RichMarkdownCollabUser } from "@agent-native/core/client";
 import { BlockRegistryProvider } from "@agent-native/core/blocks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,15 +33,11 @@ import {
 import { PlanTableOfContents } from "./PlanTableOfContents";
 import { planBlockRegistry, createPlanBlockRenderContext } from "./planBlocks";
 
-const loadPlanDocumentEditor = () => import("../editor/PlanDocumentEditor");
-const LazyPlanDocumentEditor = lazy(() =>
-  loadPlanDocumentEditor().then((mod) => ({ default: mod.PlanDocumentEditor })),
-);
-const LazyNestedPlanBlocksEditor = lazy(() =>
-  loadPlanDocumentEditor().then((mod) => ({
-    default: mod.NestedPlanBlocksEditor,
-  })),
-);
+type RichMarkdownCollabUser = {
+  name: string;
+  color: string;
+  email?: string;
+};
 
 type PlanContentRendererProps = {
   content: PlanContent;
@@ -232,164 +225,7 @@ export function PlanContentRenderer({
     });
   };
 
-  // The single-document editor is CLIENT-ONLY: Tiptap can't render on the server,
-  // so SSR + the first client paint render the read-only per-block view, and the
-  // editor swaps in after hydration. This avoids a hydration mismatch (which would
-  // force React to regenerate the tree and drop editor state). It also gates on
-  // real editability (not review/annotation mode, and a persistence channel).
-  // The single-document editor is ON (non-collab seed path, which materializes the
-  // inline custom-block nodes). A hard guard in PlanDocumentEditor refuses to
-  // persist an empty/catastrophically-smaller doc over real content, so a seed
-  // race can never wipe `blocks[]`. Single-doc multi-user collab is a fast-follow.
-  const SINGLE_DOC_EDITOR_ENABLED = true;
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const documentEditable =
-    SINGLE_DOC_EDITOR_ENABLED &&
-    mounted &&
-    !editingDisabled &&
-    !!(onContentPatch || onContentChange);
-  const metadataEditable = documentEditable && !!onMetadataChange;
-  const notionCompatibleOnly = Boolean(
-    (content as { notionSync?: boolean }).notionSync,
-  );
-
-  // Persist a whole-document edit (prose, reorder, insert/delete, block data),
-  // DEBOUNCED + SERIALIZED. The single-doc editor fires `onBlocksChange` on every
-  // keystroke; saving per keystroke produced overlapping `replace-blocks` POSTs
-  // that raced the server optimistic lock (`WHERE updatedAt = versionAtLoad`) — a
-  // later save had loaded a pre-bump version, matched 0 rows, threw "Plan changed",
-  // 500'd, and dropped the trailing characters. We coalesce keystrokes into one
-  // save per ~600ms pause AND keep only one save in-flight (the latest pending
-  // blocks are re-saved after it settles), so a single author's rapid edits can
-  // never overlap. The unmount flush below keeps the last edit when the reader
-  // closes / the user navigates away.
-  //
-  // Exponential backoff: on consecutive failures we back off 1s→2s→4s→…→30s
-  // (capped). After 5 consecutive failures we stop auto-retrying and surface a
-  // persistent "Couldn't save — Retry" pill. The user can click it to retry
-  // immediately, which resets the backoff counter.
-  const AUTOSAVE_DEBOUNCE_MS = 600;
-  const AUTOSAVE_MAX_RETRIES = 5;
-  const AUTOSAVE_MAX_BACKOFF_MS = 30_000;
-  const pendingBlocksRef = useRef<PlanBlock[] | null>(null);
-  const savingRef = useRef(false);
-  const saveTimerRef = useRef<number | null>(null);
-  const consecutiveFailuresRef = useRef(0);
-  const [autosaveFailed, setAutosaveFailed] = useState(false);
-
-  const persistBlocksRef = useRef<
-    (blocks: PlanBlock[]) => void | Promise<void>
-  >(() => {});
-  persistBlocksRef.current = (nextBlocks: PlanBlock[]) =>
-    onContentPatch
-      ? onContentPatch({ op: "replace-blocks", blocks: nextBlocks })
-      : onContentChange?.({ ...content, blocks: nextBlocks });
-  const scheduleSaveRef = useRef<(delayMs?: number) => void>(() => {});
-  scheduleSaveRef.current = (delayMs = AUTOSAVE_DEBOUNCE_MS) => {
-    if (saveTimerRef.current !== null)
-      window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      saveTimerRef.current = null;
-      flushSaveRef.current();
-    }, delayMs);
-  };
-  const flushSaveRef = useRef<() => void>(() => {});
-  flushSaveRef.current = () => {
-    if (savingRef.current) return; // serialize: the in-flight save re-flushes below
-    const next = pendingBlocksRef.current;
-    if (next === null) return;
-    pendingBlocksRef.current = null;
-    savingRef.current = true;
-    let failed = false;
-    void Promise.resolve(persistBlocksRef.current(next))
-      .catch((error) => {
-        failed = true;
-        consecutiveFailuresRef.current += 1;
-        // Keep the last unsaved snapshot live. If the user typed a newer edit
-        // while this save was in-flight, that newer pending snapshot wins.
-        if (pendingBlocksRef.current === null) {
-          pendingBlocksRef.current = next;
-        }
-        // eslint-disable-next-line no-console
-        console.error("Failed to autosave plan document:", error);
-        // Surface a persistent error pill after the first failure.
-        setAutosaveFailed(true);
-      })
-      .finally(() => {
-        savingRef.current = false;
-        if (!failed) {
-          consecutiveFailuresRef.current = 0;
-          setAutosaveFailed(false);
-        }
-        if (pendingBlocksRef.current !== null) {
-          if (failed) {
-            // Stop auto-retrying after too many consecutive failures; the user
-            // must click "Retry" to resume.
-            if (consecutiveFailuresRef.current < AUTOSAVE_MAX_RETRIES) {
-              const backoffMs = Math.min(
-                1_000 * 2 ** (consecutiveFailuresRef.current - 1),
-                AUTOSAVE_MAX_BACKOFF_MS,
-              );
-              scheduleSaveRef.current(backoffMs);
-            }
-          } else {
-            // A newer edit landed while saving → save it now (with the bumped version).
-            flushSaveRef.current();
-          }
-        }
-      });
-  };
-
-  // Manual retry: reset backoff and immediately flush.
-  const retryAutosave = () => {
-    consecutiveFailuresRef.current = 0;
-    setAutosaveFailed(false);
-    flushSaveRef.current();
-  };
-  const replaceBlocks = async (nextBlocks: PlanBlock[]) => {
-    // A STRUCTURAL change (drag-to-columns, reorder, insert/delete) must hit the
-    // source-of-truth immediately, so the editor's authoritative `value` tracks
-    // the new layout and the lagging poll never reverts it before the debounced
-    // save lands. Text edits skip this (their structure is unchanged) to avoid
-    // making `value` track every keystroke, which would loop the reconcile.
-    if (
-      onOptimisticBlocks &&
-      blockStructureSignature(nextBlocks) !==
-        blockStructureSignature(content.blocks)
-    ) {
-      onOptimisticBlocks(nextBlocks);
-    }
-    pendingBlocksRef.current = nextBlocks;
-    scheduleSaveRef.current(AUTOSAVE_DEBOUNCE_MS);
-  };
-  useEffect(
-    () => () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      flushSaveRef.current();
-    },
-    [],
-  );
-
-  // Defensive guard: if planId changes while a pending debounced save exists,
-  // DROP the stale pending edit rather than letting it flush into the new plan.
-  // With key={bundle.plan.id} on the outer PlanContentRenderer this path is
-  // unreachable in practice (plan switches remount the whole tree), but guard
-  // it anyway to prevent silent data-corruption if the key is ever removed.
-  const prevPlanIdRef = useRef(planId);
-  useEffect(() => {
-    if (planId !== prevPlanIdRef.current) {
-      prevPlanIdRef.current = planId;
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      pendingBlocksRef.current = null;
-    }
-  }, [planId]);
+  const metadataEditable = false;
 
   // Keep the latest document-level handlers in a ref so the memoized render
   // context stays stable (no markdown-editor remounts) while `renderBlock` for
@@ -428,59 +264,19 @@ export function PlanContentRenderer({
           handlersRef.current.updateRichTextBlock(blockId, markdown),
         onVisualQuestionsSubmit: (summary) =>
           handlersRef.current.onVisualQuestionsSubmit?.(summary),
-        renderBlocksEditor: ({
-          blocks,
-          onChange,
-          editable,
-          containerBlockId,
-          regionId,
-          regionLabel,
-          compactVisuals,
-        }) => (
-          // Key by container + region so a container that renders only its
-          // ACTIVE region at one position (tabs) gets a FRESH nested editor on
-          // every switch. Without it React reuses the one instance and only
-          // swaps `blocks`; the nested `useCollabReconcile` then treats the new
-          // region's content as a recent echo and skips re-applying it, so the
-          // Tiptap doc keeps the previous tab's nodes while the side-map swaps to
-          // the new tab — surfacing as "every tab shows the same diff" and, once
-          // the stale node's id is gone from the side-map, a permanent
-          // "Loading diff block…". Columns already render each region at its own
-          // keyed position, so this is a no-op there.
-          <Suspense
-            fallback={
-              <div className="grid gap-4">
-                {(blocks as PlanBlock[]).map((block) => (
-                  <PlanBlockView
-                    key={block.id}
-                    block={block}
-                    editingDisabled
-                    contentUpdatedAt={contentUpdatedAt}
-                    planId={planId}
-                    collabUser={collabUser}
-                  />
-                ))}
-              </div>
-            }
-          >
-            <LazyNestedPlanBlocksEditor
-              key={`${containerBlockId}::${regionId}`}
-              blocks={blocks as PlanBlock[]}
-              contentUpdatedAt={contentUpdatedAt}
-              planId={planId}
-              collabUser={collabUser}
-              editable={editable && !handlersRef.current.editingDisabled}
-              onBlocksChange={(nextBlocks) => onChange(nextBlocks)}
-              onVisualQuestionsSubmit={(summary) =>
-                handlersRef.current.onVisualQuestionsSubmit?.(summary)
-              }
-              notionCompatibleOnly={notionCompatibleOnly}
-              containerBlockId={containerBlockId}
-              regionId={regionId}
-              regionLabel={regionLabel}
-              compactVisuals={compactVisuals}
-            />
-          </Suspense>
+        renderBlocksEditor: ({ blocks }) => (
+          <div className="grid gap-4">
+            {(blocks as PlanBlock[]).map((block) => (
+              <PlanBlockView
+                key={block.id}
+                block={block}
+                editingDisabled
+                contentUpdatedAt={contentUpdatedAt}
+                planId={planId}
+                collabUser={collabUser}
+              />
+            ))}
+          </div>
         ),
         editingDisabled,
         showCodeAnnotationOverlays,
@@ -491,7 +287,6 @@ export function PlanContentRenderer({
       planId,
       collabUser,
       editingDisabled,
-      notionCompatibleOnly,
       showCodeAnnotationOverlays,
       codeAnnotationLayout,
     ],
@@ -618,22 +413,6 @@ export function PlanContentRenderer({
         data-plan-document
         data-recap-screenshot-theme={recapScreenshotTheme ?? undefined}
       >
-        {autosaveFailed && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2">
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-border/80 bg-background/95 px-3 py-1.5 text-sm shadow-lg backdrop-blur-sm">
-              <span className="text-muted-foreground">Couldn't save</span>
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-sm font-semibold text-primary underline-offset-4"
-                onClick={retryAutosave}
-              >
-                Retry
-              </Button>
-            </div>
-          </div>
-        )}
         {(content.canvas || content.prototype) && (
           <PlanVisualSurface
             canvas={content.canvas}
@@ -750,48 +529,19 @@ export function PlanContentRenderer({
               )}
 
               <div className="plan-document-flow">
-                {documentEditable ? (
-                  // The whole body is ONE editable rich-markdown document; custom
-                  // blocks are inline `planBlock` NodeViews. Read-only / review /
-                  // SSR keeps the per-block render below (no Tiptap server-side).
-                  <Suspense
-                    fallback={renderedBlocks.map((block) => (
-                      <PlanBlockView
-                        key={block.id}
-                        block={block}
-                        onVisualQuestionsSubmit={onVisualQuestionsSubmit}
-                        contentUpdatedAt={contentUpdatedAt}
-                        editingDisabled
-                        planId={planId}
-                        collabUser={collabUser}
-                      />
-                    ))}
-                  >
-                    <LazyPlanDocumentEditor
-                      content={content}
-                      contentUpdatedAt={contentUpdatedAt}
-                      planId={planId}
-                      collabUser={collabUser}
-                      editable
-                      onBlocksChange={replaceBlocks}
-                      onVisualQuestionsSubmit={onVisualQuestionsSubmit}
-                    />
-                  </Suspense>
-                ) : (
-                  renderedBlocks.map((block) => (
-                    <PlanBlockView
-                      key={block.id}
-                      block={block}
-                      onChange={(nextBlock) => updateBlock(block.id, nextBlock)}
-                      onRichTextChange={updateRichTextBlock}
-                      onVisualQuestionsSubmit={onVisualQuestionsSubmit}
-                      contentUpdatedAt={contentUpdatedAt}
-                      editingDisabled={editingDisabled}
-                      planId={planId}
-                      collabUser={collabUser}
-                    />
-                  ))
-                )}
+                {renderedBlocks.map((block) => (
+                  <PlanBlockView
+                    key={block.id}
+                    block={block}
+                    onChange={(nextBlock) => updateBlock(block.id, nextBlock)}
+                    onRichTextChange={updateRichTextBlock}
+                    onVisualQuestionsSubmit={onVisualQuestionsSubmit}
+                    contentUpdatedAt={contentUpdatedAt}
+                    editingDisabled={editingDisabled}
+                    planId={planId}
+                    collabUser={collabUser}
+                  />
+                ))}
               </div>
             </div>
           </div>

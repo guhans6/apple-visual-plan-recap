@@ -6,10 +6,7 @@ import {
   IconLayoutSidebarLeftExpand,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
-import {
-  DevDatabaseLink,
-  appPath,
-} from "@agent-native/core/client";
+import { appPath } from "@/lib/local-shell";
 import { APP_TITLE } from "@/lib/app-config";
 import { useCompanionDashboard } from "@/hooks/use-companion-plan";
 import { isCompanionDetailPath } from "@/lib/navigation-paths";
@@ -51,12 +48,12 @@ function PlansSidebarSection({ collapsed }: { collapsed: boolean }) {
       ...(dashboardQuery.data?.currentProject.plans ?? []),
       ...(dashboardQuery.data?.currentProject.recaps ?? []),
     ],
-    [dashboardQuery.data?.currentProject.plans, dashboardQuery.data?.currentProject.recaps],
+    [
+      dashboardQuery.data?.currentProject.plans,
+      dashboardQuery.data?.currentProject.recaps,
+    ],
   );
-  const hasMore = useMemo(
-    () => allArtifacts.length > 10,
-    [allArtifacts],
-  );
+  const hasMore = useMemo(() => allArtifacts.length > 10, [allArtifacts]);
   const artifacts = useMemo(() => allArtifacts.slice(0, 10), [allArtifacts]);
 
   if (collapsed) return null;
@@ -94,7 +91,9 @@ function PlansSidebarSection({ collapsed }: { collapsed: boolean }) {
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/65 hover:text-sidebar-accent-foreground",
                 )}
               >
-                <span className="min-w-0 flex-1 truncate">{artifact.title}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {artifact.title}
+                </span>
                 {artifact.kind === "recap" && (
                   <Badge
                     variant="outline"
@@ -178,7 +177,8 @@ export function Sidebar({
           const Icon = item.icon;
           const isActive =
             item.href === "/"
-              ? location.pathname === "/" || isCompanionDetailPath(location.pathname)
+              ? location.pathname === "/" ||
+                isCompanionDetailPath(location.pathname)
               : location.pathname.startsWith(item.href);
           return (
             <div key={item.href}>
@@ -206,14 +206,6 @@ export function Sidebar({
           );
         })}
       </nav>
-
-      {!collapsed && (
-        <>
-          <div className="space-y-2 border-t border-border px-3 py-2">
-            <DevDatabaseLink />
-          </div>
-        </>
-      )}
 
       {collapsible && (
         <div

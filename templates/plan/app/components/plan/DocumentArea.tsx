@@ -1,12 +1,4 @@
-import {
-  Component,
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   IconAlertTriangle,
   IconCheck,
@@ -19,10 +11,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  uploadEditorImage,
-  type RichMarkdownCollabUser,
-} from "@agent-native/core/client";
-import {
   BlockView,
   SchemaBlockEditor,
   blockEditSurface,
@@ -34,11 +22,11 @@ import { Wireframe } from "./wireframe/Wireframe";
 import { PlanMarkdownReader } from "./PlanMarkdownReader";
 import { PlanImageViewer } from "./PlanImageViewer";
 
-const LazyPlanMarkdownEditor = lazy(() =>
-  import("./PlanMarkdownEditor").then((mod) => ({
-    default: mod.PlanMarkdownEditor,
-  })),
-);
+type RichMarkdownCollabUser = {
+  name: string;
+  color: string;
+  email?: string;
+};
 
 /**
  * Marker prefix embedded in salvaged "unknown-block" callout bodies by the
@@ -446,12 +434,6 @@ function PlanBlockViewInner({
 
 function RichTextBlock({
   block,
-  onChange,
-  onRichTextChange,
-  contentUpdatedAt,
-  editingDisabled,
-  planId,
-  collabUser,
 }: {
   block: Extract<PlanBlock, { type: "rich-text" }>;
   onChange?: (block: PlanBlock) => Promise<void> | void;
@@ -464,42 +446,9 @@ function RichTextBlock({
   planId?: string | null;
   collabUser?: RichMarkdownCollabUser | null;
 }) {
-  const canUseInlineEditor = block.editable !== false && !!onChange;
-  const editable = canUseInlineEditor && !editingDisabled;
   return (
     <section className="plan-block group" data-block-id={block.id}>
-      {canUseInlineEditor && !editingDisabled ? (
-        <Suspense
-          fallback={
-            <PlanMarkdownReader
-              markdown={block.data.markdown}
-              blockId={block.id}
-            />
-          }
-        >
-          <LazyPlanMarkdownEditor
-            markdown={block.data.markdown}
-            editable={editable}
-            contentUpdatedAt={contentUpdatedAt}
-            planId={planId}
-            blockId={block.id}
-            user={collabUser}
-            onSave={(markdown) =>
-              onRichTextChange
-                ? onRichTextChange(block.id, markdown)
-                : onChange?.({
-                    ...block,
-                    data: { ...block.data, markdown },
-                  })
-            }
-          />
-        </Suspense>
-      ) : (
-        // Read-only path (public / shared-reviewer / review mode / SSR): render
-        // markdown without mounting Tiptap so comment clicks hit stable text.
-        // Pass blockId so headings get stable anchor ids for deep-linking.
-        <PlanMarkdownReader markdown={block.data.markdown} blockId={block.id} />
-      )}
+      <PlanMarkdownReader markdown={block.data.markdown} blockId={block.id} />
     </section>
   );
 }
@@ -1048,6 +997,8 @@ function ImageBlock({
     if (!file) return;
     const toastId = toast.loading("Replacing image…");
     try {
+      const { uploadEditorImage } =
+        await import("@agent-native/core/client/uploadEditorImage");
       const { src: nextSrc, alt: nextAlt } = await uploadEditorImage(file);
       commitData({
         ...block.data,

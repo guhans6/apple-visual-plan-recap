@@ -1,7 +1,4 @@
-import {
-  useActionMutation,
-  useActionQuery,
-} from "@agent-native/core/client";
+import { useActionMutation, useActionQuery } from "@/lib/local-shell";
 
 export type CompanionKind = "plan" | "recap";
 
@@ -25,12 +22,19 @@ export function companionPlanQueryKey(
   ] as const;
 }
 
-export function companionFeedbackQueryParams(slug: string, path?: string | null) {
+export function companionFeedbackQueryParams(
+  slug: string,
+  path?: string | null,
+) {
   return path ? ({ slug, path } as const) : ({ slug } as const);
 }
 
 export function companionFeedbackQueryKey(slug: string, path?: string | null) {
-  return ["action", "get-companion-feedback", companionFeedbackQueryParams(slug, path)] as const;
+  return [
+    "action",
+    "get-companion-feedback",
+    companionFeedbackQueryParams(slug, path),
+  ] as const;
 }
 
 export function useCompanionPlan(
